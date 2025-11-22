@@ -1,0 +1,63 @@
+---
+alwaysApply: true
+---
+
+# Git Workflow
+
+## Branch Roles
+
+- `main` is the release branch. It accepts reviewed, tested, and merged work. Deploys come from here.
+- `dev` is the integration branch for ongoing work. It may be unstable but must build.
+- All other branches are temporary and named by purpose.
+
+## Branch Naming
+
+- Feature branches: `feature/<module>/<short-description>` (e.g., `feature/pullrequest/reassign-improvements`).
+- Hotfix branches: `hotfix/<module>/<short-description>` (e.g., `hotfix/user/deactivate-batch`).
+- Experiment branches: `exp/<team>/<topic>` (e.g., `exp/team/async-assign`).
+- Support branches (docs or infra): `support/<topic>` (e.g., `support/docker-compose-update`).
+
+## Workflow Steps
+
+1. Create a branch from `dev` for new work: `git checkout -b feature/user/add-status`.
+2. Keep commits focused and rebased onto the latest `dev`.
+3. Push the branch and open a pull request into `dev`.
+4. After reviews and automated checks pass, merge (prefer fast-forward).
+5. Periodically merge `dev` into `main` for releases; protect `main`.
+
+## Example Scenarios
+
+- Feature: create `feature/team/auto-assign` → work → PR into `dev` → merge.
+- Hotfix: start `hotfix/pullrequest/bad-merge` from `main`, fix, merge into `main` and backport to `dev`.
+- Support: open `support/logging-config`, update documentation, merge into `dev`.
+- Experiment: create `exp/user/circuit-breaker` to test behavior; delete when done.
+- Emergency doc fix: `hotfix/docs/readme-typo` from `main`, merge to `main` and `dev`.
+
+## PR Guidelines
+
+- Target `dev` unless the change is critical and needs an immediate release.
+- Use descriptive titles and link to relevant tasks.
+- Keep PRs small; split large work into multiple feature branches.
+
+## COMMITS
+
+Conventional Commits:
+
+```text
+<type>(<scope>): <subject>
+
+<body>
+
+<footer>
+```
+
+## Creating Pull Request
+
+### Название
+
+`<type>(<scope>): <описание>`
+
+examples:
+
+- `feat(pullrequest): добавить автоматическое назначение ревьюверов`
+- `fix(user): исправить валидацию активности`

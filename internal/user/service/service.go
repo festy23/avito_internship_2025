@@ -1,3 +1,4 @@
+// Package service provides business logic layer for user module.
 package service
 
 import (
@@ -55,4 +56,3 @@ func (s *service) GetReview(ctx context.Context, userID string) (*model.GetRevie
 		PullRequests: prs,
 	}, nil
 }
-

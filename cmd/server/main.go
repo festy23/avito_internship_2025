@@ -1,3 +1,4 @@
+// Package main provides the entry point for the HTTP server.
 package main
 
 import (
@@ -25,4 +26,3 @@ func main() {
 		log.Fatalf("failed to start server: %v", err)
 	}
 }
-

@@ -2,6 +2,7 @@ package router
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -41,8 +42,15 @@ func (testUser) TableName() string {
 }
 
 func setupIntegrationDB(t *testing.T) *gorm.DB {
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	// Use shared in-memory DB to ensure migrations/data are visible across connections
+	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
 	require.NoError(t, err)
+
+	// Limit connection pool to 1 to ensure shared in-memory DB works correctly
+	var sqlDB *sql.DB
+	sqlDB, err = db.DB()
+	require.NoError(t, err)
+	sqlDB.SetMaxOpenConns(1)
 
 	err = db.AutoMigrate(&testTeam{}, &testUser{})
 	require.NoError(t, err)

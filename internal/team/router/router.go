@@ -19,4 +19,3 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB) {
 	r.POST("/team/add", h.AddTeam)
 	r.GET("/team/get", h.GetTeam)
 }
-

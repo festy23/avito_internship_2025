@@ -318,4 +318,3 @@ func TestIntegration_FullFlow(t *testing.T) {
 		// User updates would come through a different endpoint (users/setIsActive)
 	})
 }
-

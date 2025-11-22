@@ -28,8 +28,9 @@ func New(svc service.Service) *Handler {
 // @Accept json
 // @Produce json
 // @Param request body teamModel.AddTeamRequest true "Request"
-// @Success 201 {object} teamModel.TeamResponse
-// @Failure 400 {object} ErrorResponse
+// @Success 201 {object} map[string]teamModel.TeamResponse "Response wrapped in team object"
+// @Failure 400 {object} ErrorResponse "Bad request (TEAM_EXISTS, INVALID_REQUEST)"
+// @Failure 500 {object} ErrorResponse "Internal server error"
 // @Router /team/add [post] //nolint:godot // Swagger annotation should not end with period
 func (h *Handler) AddTeam(c *gin.Context) {
 	var req teamModel.AddTeamRequest
@@ -67,8 +68,10 @@ func (h *Handler) AddTeam(c *gin.Context) {
 // @Tags Teams
 // @Produce json
 // @Param team_name query string true "Team Name"
-// @Success 200 {object} teamModel.TeamResponse
-// @Failure 404 {object} ErrorResponse
+// @Success 200 {object} teamModel.TeamResponse "Team response"
+// @Failure 400 {object} ErrorResponse "Bad request (missing team_name parameter)"
+// @Failure 404 {object} ErrorResponse "Team not found"
+// @Failure 500 {object} ErrorResponse "Internal server error"
 // @Router /team/get [get] //nolint:godot // Swagger annotation should not end with period
 func (h *Handler) GetTeam(c *gin.Context) {
 	teamName := c.Query("team_name")

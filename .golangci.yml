@@ -72,8 +72,6 @@ linters:
       exclude:
         - "^TODO:"
         - "^FIXME:"
-        - "^@"
-        - "^// @"
     
     staticcheck:
       checks:
@@ -89,7 +87,4 @@ linters:
           - funlen
           - gosec
           - noctx
-      - path: handler\.go
-        linters:
-          - godot
 

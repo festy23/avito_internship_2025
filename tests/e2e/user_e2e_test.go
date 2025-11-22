@@ -17,8 +17,8 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
-	"github.com/festy23/avito_internship/internal/user"
 	"github.com/festy23/avito_internship/internal/user/model"
+	userRouter "github.com/festy23/avito_internship/internal/user/router"
 )
 
 type testUser struct {
@@ -70,7 +70,7 @@ func TestE2E_SetUserActive(t *testing.T) {
 	db := setupE2EDB(t)
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	user.RegisterRoutes(router, db)
+	userRouter.RegisterRoutes(router, db)
 
 	db.Exec("INSERT INTO teams (team_name) VALUES (?)", "team1")
 	db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
@@ -101,7 +101,7 @@ func TestE2E_SetUserInactive(t *testing.T) {
 	db := setupE2EDB(t)
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	user.RegisterRoutes(router, db)
+	userRouter.RegisterRoutes(router, db)
 
 	db.Exec("INSERT INTO teams (team_name) VALUES (?)", "team1")
 	db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
@@ -132,7 +132,7 @@ func TestE2E_GetReviewWithPRs(t *testing.T) {
 	db := setupE2EDB(t)
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	user.RegisterRoutes(router, db)
+	userRouter.RegisterRoutes(router, db)
 
 	db.Exec("INSERT INTO teams (team_name) VALUES (?)", "team1")
 	db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
@@ -167,7 +167,7 @@ func TestE2E_GetReviewWithoutPRs(t *testing.T) {
 	db := setupE2EDB(t)
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	user.RegisterRoutes(router, db)
+	userRouter.RegisterRoutes(router, db)
 
 	db.Exec("INSERT INTO teams (team_name) VALUES (?)", "team1")
 	db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
@@ -190,7 +190,7 @@ func TestE2E_GetReviewUserNotFound(t *testing.T) {
 	db := setupE2EDB(t)
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	user.RegisterRoutes(router, db)
+	userRouter.RegisterRoutes(router, db)
 
 	req := httptest.NewRequest(http.MethodGet, "/users/getReview?user_id=nonexistent", nil)
 	w := httptest.NewRecorder()

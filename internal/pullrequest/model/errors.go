@@ -1,0 +1,20 @@
+package model
+
+import "errors"
+
+var (
+	// ErrPullRequestExists indicates that a pull request with the given ID already exists.
+	ErrPullRequestExists = errors.New("pull request already exists")
+	// ErrPullRequestNotFound indicates that the requested pull request does not exist.
+	ErrPullRequestNotFound = errors.New("pull request not found")
+	// ErrPullRequestMerged indicates that the pull request is already merged and cannot be modified.
+	ErrPullRequestMerged = errors.New("pull request is merged")
+	// ErrReviewerNotAssigned indicates that the user is not assigned as a reviewer for this PR.
+	ErrReviewerNotAssigned = errors.New("reviewer is not assigned to this PR")
+	// ErrNoCandidate indicates that there are no available candidates for assignment.
+	ErrNoCandidate = errors.New("no active replacement candidate in team")
+	// ErrAuthorNotFound indicates that the author user does not exist.
+	ErrAuthorNotFound = errors.New("author not found")
+	// ErrInvalidPullRequestID indicates that the provided pull request ID is invalid (e.g., empty).
+	ErrInvalidPullRequestID = errors.New("invalid pull request ID")
+)

@@ -76,9 +76,10 @@ func TestE2E_SetUserActive(t *testing.T) {
 	db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
 		"u1", "Alice", "team1", true)
 
+	isActive := false
 	reqBody := model.SetIsActiveRequest{
 		UserID:   "u1",
-		IsActive: false,
+		IsActive: &isActive,
 	}
 	jsonBody, _ := json.Marshal(reqBody)
 
@@ -106,9 +107,10 @@ func TestE2E_SetUserInactive(t *testing.T) {
 	db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
 		"u1", "Alice", "team1", false)
 
+	isActive := true
 	reqBody := model.SetIsActiveRequest{
 		UserID:   "u1",
-		IsActive: true,
+		IsActive: &isActive,
 	}
 	jsonBody, _ := json.Marshal(reqBody)
 

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -54,9 +55,10 @@ func TestHandler_SetIsActive(t *testing.T) {
 		router := setupRouter()
 		router.POST("/users/setIsActive", handler.SetIsActive)
 
+		isActive := false
 		reqBody := model.SetIsActiveRequest{
 			UserID:   "u1",
-			IsActive: false,
+			IsActive: &isActive,
 		}
 		jsonBody, _ := json.Marshal(reqBody)
 
@@ -112,9 +114,10 @@ func TestHandler_SetIsActive(t *testing.T) {
 		router := setupRouter()
 		router.POST("/users/setIsActive", handler.SetIsActive)
 
+		isActive := false
 		reqBody := model.SetIsActiveRequest{
 			UserID:   "nonexistent",
-			IsActive: false,
+			IsActive: &isActive,
 		}
 		jsonBody, _ := json.Marshal(reqBody)
 
@@ -132,6 +135,31 @@ func TestHandler_SetIsActive(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "NOT_FOUND", resp.Error.Code)
 		mockSvc.AssertExpectations(t)
+	})
+
+	t.Run("missing is_active field", func(t *testing.T) {
+		mockSvc := new(mockService)
+		handler := New(mockSvc)
+		router := setupRouter()
+		router.POST("/users/setIsActive", handler.SetIsActive)
+
+		reqBody := map[string]interface{}{
+			"user_id": "u1",
+		}
+		jsonBody, _ := json.Marshal(reqBody)
+
+		req := httptest.NewRequest(http.MethodPost, "/users/setIsActive", bytes.NewBuffer(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		var resp ErrorResponse
+		err := json.Unmarshal(w.Body.Bytes(), &resp)
+		require.NoError(t, err)
+		assert.Equal(t, "INVALID_REQUEST", resp.Error.Code)
+		mockSvc.AssertNotCalled(t, "SetIsActive")
 	})
 }
 
@@ -241,6 +269,33 @@ func TestHandler_GetReview(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "u1", resp.UserID)
 		assert.Empty(t, resp.PullRequests)
+		mockSvc.AssertExpectations(t)
+	})
+}
+
+func TestHandler_EdgeCases(t *testing.T) {
+	t.Run("user_id with special characters", func(t *testing.T) {
+		mockSvc := new(mockService)
+		handler := New(mockSvc)
+		router := setupRouter()
+		router.GET("/users/getReview", handler.GetReview)
+
+		specialUserID := "user'; DROP TABLE users; --"
+
+		expectedResp := &model.GetReviewResponse{
+			UserID:       specialUserID,
+			PullRequests: []model.PullRequestShort{},
+		}
+
+		mockSvc.On("GetReview", mock.Anything, specialUserID).Return(expectedResp, nil)
+
+		reqURL := "/users/getReview?user_id=" + url.QueryEscape(specialUserID)
+		req := httptest.NewRequest(http.MethodGet, reqURL, nil)
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
 		mockSvc.AssertExpectations(t)
 	})
 }

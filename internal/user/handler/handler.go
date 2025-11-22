@@ -44,6 +44,10 @@ func (h *Handler) SetIsActive(c *gin.Context) {
 			notFoundResponse(c, "user not found")
 			return
 		}
+		if errors.Is(err, model.ErrInvalidIsActive) {
+			errorResponse(c, "INVALID_REQUEST", "is_active field is required", http.StatusBadRequest)
+			return
+		}
 		errorResponse(c, "INTERNAL_ERROR", "internal server error", http.StatusInternalServerError)
 		return
 	}

@@ -32,7 +32,11 @@ func (s *service) SetIsActive(ctx context.Context, req *model.SetIsActiveRequest
 		return nil, model.ErrUserNotFound
 	}
 
-	user, err := s.repo.UpdateIsActive(ctx, req.UserID, req.IsActive)
+	if req.IsActive == nil {
+		return nil, model.ErrInvalidIsActive
+	}
+
+	user, err := s.repo.UpdateIsActive(ctx, req.UserID, *req.IsActive)
 	if err != nil {
 		return nil, err
 	}

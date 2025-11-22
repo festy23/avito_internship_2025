@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	teamModel "github.com/festy23/avito_internship/internal/team/model"
 	userModel "github.com/festy23/avito_internship/internal/user/model"
@@ -102,6 +103,7 @@ func (r *repository) GetByName(ctx context.Context, teamName string) (*teamModel
 }
 
 // CreateOrUpdateUser creates or updates a user in the team.
+// Uses atomic OnConflict to prevent race conditions.
 func (r *repository) CreateOrUpdateUser(
 	ctx context.Context,
 	teamName, userID, username string,
@@ -117,38 +119,29 @@ func (r *repository) CreateOrUpdateUser(
 		UpdatedAt: now,
 	}
 
-	// Try to update first
-	result := r.db.WithContext(ctx).
-		Model(&userModel.User{}).
-		Where("user_id = ?", userID).
-		Updates(map[string]interface{}{
-			"username":   username,
-			"team_name":  teamName,
-			"is_active":  isActive,
-			"updated_at": now,
-		})
+	// Use OnConflict for atomic upsert to prevent race conditions
+	// On conflict, update only: username, team_name, is_active, updated_at
+	// created_at is preserved from original insert
+	err := r.db.WithContext(ctx).
+		Clauses(clause.OnConflict{
+			Columns: []clause.Column{{Name: "user_id"}},
+			DoUpdates: clause.Assignments(map[string]interface{}{
+				"username":   username,
+				"team_name":  teamName,
+				"is_active":  isActive,
+				"updated_at": now,
+			}),
+		}).
+		Create(user).Error
 
-	if result.Error != nil {
-		return nil, result.Error
+	if err != nil {
+		return nil, err
 	}
 
-	// If no rows were affected, insert new user
-	if result.RowsAffected == 0 {
-		// Use Exec with raw SQL to ensure exact values are inserted
-		err := r.db.WithContext(ctx).Exec(
-			"INSERT INTO users (user_id, username, team_name, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
-			userID, username, teamName, isActive, now, now,
-		).
-			Error
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		// Fetch updated user
-		err := r.db.WithContext(ctx).Where("user_id = ?", userID).First(user).Error
-		if err != nil {
-			return nil, err
-		}
+	// Fetch the user to return complete data (including created_at if it was a new record)
+	err = r.db.WithContext(ctx).Where("user_id = ?", userID).First(user).Error
+	if err != nil {
+		return nil, err
 	}
 
 	return user, nil

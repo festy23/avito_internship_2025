@@ -26,6 +26,8 @@ linters:
     
     # Code style
     - revive
+    - gofmt
+    - goimports
     
     # Complexity
     - gocyclo
@@ -72,7 +74,6 @@ linters:
       exclude:
         - "^TODO:"
         - "^FIXME:"
-        - "^@"
     
     staticcheck:
       checks:
@@ -88,3 +89,4 @@ linters:
           - funlen
           - gosec
           - noctx
+

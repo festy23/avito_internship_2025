@@ -3,6 +3,7 @@ package handler
 
 import (
 	"errors"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -29,7 +30,7 @@ func New(svc service.Service) *Handler {
 // @Param request body model.SetIsActiveRequest true "Request"
 // @Success 200 {object} model.SetIsActiveResponse
 // @Failure 404 {object} ErrorResponse
-// @Router /users/setIsActive [post].
+// @Router /users/setIsActive [post]
 func (h *Handler) SetIsActive(c *gin.Context) {
 	var req model.SetIsActiveRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -58,7 +59,7 @@ func (h *Handler) SetIsActive(c *gin.Context) {
 // @Param user_id query string true "User ID"
 // @Success 200 {object} model.GetReviewResponse
 // @Failure 400 {object} ErrorResponse
-// @Router /users/getReview [get].
+// @Router /users/getReview [get]
 func (h *Handler) GetReview(c *gin.Context) {
 	userID := c.Query("user_id")
 	if userID == "" {
@@ -68,6 +69,14 @@ func (h *Handler) GetReview(c *gin.Context) {
 
 	resp, err := h.service.GetReview(c.Request.Context(), userID)
 	if err != nil {
+		if errors.Is(err, model.ErrUserNotFound) {
+			c.JSON(http.StatusOK, &model.GetReviewResponse{
+				UserID:       userID,
+				PullRequests: []model.PullRequestShort{},
+			})
+			return
+		}
+		log.Printf("error getting review for user %s: %v", userID, err)
 		errorResponse(c, "INTERNAL_ERROR", "internal server error", http.StatusInternalServerError)
 		return
 	}

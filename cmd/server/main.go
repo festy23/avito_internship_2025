@@ -10,6 +10,7 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
+	"github.com/festy23/avito_internship/internal/team"
 	"github.com/festy23/avito_internship/internal/user"
 )
 
@@ -41,6 +42,7 @@ func main() {
 
 	r := gin.Default()
 
+	team.RegisterRoutes(r, db)
 	user.RegisterRoutes(r, db)
 
 	serverPort := getEnv("SERVER_PORT", ":8080")

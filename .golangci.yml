@@ -1,0 +1,92 @@
+version: "2"
+
+issues:
+  max-same-issues: 10
+
+formatters:
+  enable:
+    - goimports
+    - golines
+  settings:
+    goimports:
+      local-prefixes:
+        - avito-internship
+    golines:
+      max-len: 120
+
+linters:
+  enable:
+    # Code quality
+    - errcheck
+    - staticcheck
+    - govet
+    - gosec
+    - ineffassign
+    - unused
+    
+    # Code style
+    - revive
+    - gofmt
+    - goimports
+    
+    # Complexity
+    - gocyclo
+    - gocognit
+    - funlen
+    
+    # Best practices
+    - bodyclose
+    - noctx
+    - sqlclosecheck
+    - errname
+    - errorlint
+    
+    # Documentation
+    - godot
+
+  settings:
+    gocyclo:
+      min-complexity: 15
+    
+    gocognit:
+      min-complexity: 15
+    
+    funlen:
+      lines: 100
+      statements: 50
+    
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment
+    
+    revive:
+      rules:
+        - name: exported
+          severity: warning
+        - name: var-naming
+          severity: warning
+        - name: package-comments
+          severity: warning
+    
+    godot:
+      scope: declarations
+      exclude:
+        - "^TODO:"
+        - "^FIXME:"
+    
+    staticcheck:
+      checks:
+        - all
+        - -ST1000
+        - -ST1016
+
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+          - funlen
+          - gosec
+          - noctx
+

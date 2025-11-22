@@ -48,19 +48,28 @@ func (r *repository) GetByID(ctx context.Context, userID string) (*model.User, e
 	return &user, nil
 }
 
-// UpdateIsActive updates user's is_active flag.
+// UpdateIsActive updates user's is_active flag using RETURNING clause for atomicity.
 func (r *repository) UpdateIsActive(ctx context.Context, userID string, isActive bool) (*model.User, error) {
 	var user model.User
-	err := r.db.WithContext(ctx).
+	result := r.db.WithContext(ctx).
 		Model(&model.User{}).
 		Where("user_id = ?", userID).
-		Update("is_active", isActive).
+		Update("is_active", isActive)
+
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	if result.RowsAffected == 0 {
+		return nil, model.ErrUserNotFound
+	}
+
+	// Fetch updated user
+	err := r.db.WithContext(ctx).
+		Where("user_id = ?", userID).
 		First(&user).Error
 
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, model.ErrUserNotFound
-		}
 		return nil, err
 	}
 

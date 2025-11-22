@@ -134,7 +134,7 @@ func TestRepository_GetAssignedPullRequests(t *testing.T) {
 		assert.Empty(t, prs)
 	})
 
-	t.Run("multiple PRs", func(t *testing.T) {
+	t.Run("multiple PRs sorted by created_at DESC", func(t *testing.T) {
 		db := setupTestDB(t)
 		repo := New(db)
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "team1")
@@ -142,10 +142,21 @@ func TestRepository_GetAssignedPullRequests(t *testing.T) {
 			"u1", "Alice", "team1", true)
 		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
 			"u2", "Bob", "team1", true)
-		db.Exec("INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
-			"pr-1", "PR 1", "u2", "OPEN")
-		db.Exec("INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
-			"pr-2", "PR 2", "u2", "MERGED")
+		// Create PRs with different timestamps (pr-2 is newer)
+		db.Exec(
+			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status, created_at) VALUES (?, ?, ?, ?, datetime('now', '-1 day'))",
+			"pr-1",
+			"PR 1",
+			"u2",
+			"OPEN",
+		)
+		db.Exec(
+			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status, created_at) VALUES (?, ?, ?, ?, datetime('now'))",
+			"pr-2",
+			"PR 2",
+			"u2",
+			"MERGED",
+		)
 		db.Exec("INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)", "pr-1", "u1")
 		db.Exec("INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)", "pr-2", "u1")
 
@@ -153,11 +164,61 @@ func TestRepository_GetAssignedPullRequests(t *testing.T) {
 
 		require.NoError(t, err)
 		require.Len(t, prs, 2)
-		assert.Equal(t, "pr-1", prs[0].PullRequestID)
-		assert.Equal(t, "PR 1", prs[0].PullRequestName)
-		assert.Equal(t, "u2", prs[0].AuthorID)
-		assert.Equal(t, "OPEN", prs[0].Status)
-		assert.Equal(t, "pr-2", prs[1].PullRequestID)
-		assert.Equal(t, "MERGED", prs[1].Status)
+		// Newer PR should be first (pr-2)
+		assert.Equal(t, "pr-2", prs[0].PullRequestID)
+		assert.Equal(t, "MERGED", prs[0].Status)
+		assert.Equal(t, "pr-1", prs[1].PullRequestID)
+		assert.Equal(t, "PR 1", prs[1].PullRequestName)
+		assert.Equal(t, "u2", prs[1].AuthorID)
+		assert.Equal(t, "OPEN", prs[1].Status)
+	})
+}
+
+func TestRepository_EdgeCases(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("user_id with max length (255 chars)", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db)
+		longUserID := string(make([]byte, 255))
+		for i := range longUserID {
+			longUserID = longUserID[:i] + "a" + longUserID[i+1:]
+		}
+
+		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "team1")
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			longUserID, "Alice", "team1", true)
+
+		user, err := repo.GetByID(ctx, longUserID)
+		require.NoError(t, err)
+		assert.Equal(t, longUserID, user.UserID)
+	})
+
+	t.Run("user_id with SQL special characters", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db)
+		specialUserID := "user'; DROP TABLE users; --"
+
+		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "team1")
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			specialUserID, "Alice", "team1", true)
+
+		user, err := repo.GetByID(ctx, specialUserID)
+		require.NoError(t, err)
+		assert.Equal(t, specialUserID, user.UserID)
+	})
+
+	t.Run("user_id with unicode characters", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db)
+		unicodeUserID := "user_😀_тест_ユーザー"
+
+		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "team1")
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			unicodeUserID, "Alice", "team1", true)
+
+		user, err := repo.GetByID(ctx, unicodeUserID)
+		require.NoError(t, err)
+		assert.Equal(t, unicodeUserID, user.UserID)
 	})
 }

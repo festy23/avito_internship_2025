@@ -85,6 +85,7 @@ func (r *repository) GetAssignedPullRequests(ctx context.Context, userID string)
 		Select("pull_requests.pull_request_id, pull_requests.pull_request_name, pull_requests.author_id, pull_requests.status").
 		Joins("JOIN pull_requests ON pull_request_reviewers.pull_request_id = pull_requests.pull_request_id").
 		Where("pull_request_reviewers.user_id = ?", userID).
+		Order("pull_requests.created_at DESC").
 		Scan(&prs).Error
 
 	if err != nil {

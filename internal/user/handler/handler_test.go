@@ -190,24 +190,30 @@ func TestHandler_GetReview(t *testing.T) {
 		mockSvc.AssertNotCalled(t, "GetReview")
 	})
 
-	t.Run("user not found", func(t *testing.T) {
+	t.Run("user not found returns empty list", func(t *testing.T) {
 		mockSvc := new(mockService)
 		handler := New(mockSvc)
 		router := setupRouter()
 		router.GET("/users/getReview", handler.GetReview)
 
-		mockSvc.On("GetReview", mock.Anything, "nonexistent").Return(nil, model.ErrUserNotFound)
+		expectedResp := &model.GetReviewResponse{
+			UserID:       "nonexistent",
+			PullRequests: []model.PullRequestShort{},
+		}
+
+		mockSvc.On("GetReview", mock.Anything, "nonexistent").Return(expectedResp, nil)
 
 		req := httptest.NewRequest(http.MethodGet, "/users/getReview?user_id=nonexistent", nil)
 		w := httptest.NewRecorder()
 
 		router.ServeHTTP(w, req)
 
-		assert.Equal(t, http.StatusNotFound, w.Code)
-		var resp ErrorResponse
+		assert.Equal(t, http.StatusOK, w.Code)
+		var resp model.GetReviewResponse
 		err := json.Unmarshal(w.Body.Bytes(), &resp)
 		require.NoError(t, err)
-		assert.Equal(t, "NOT_FOUND", resp.Error.Code)
+		assert.Equal(t, "nonexistent", resp.UserID)
+		assert.Empty(t, resp.PullRequests)
 		mockSvc.AssertExpectations(t)
 	})
 

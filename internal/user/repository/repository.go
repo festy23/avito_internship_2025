@@ -1,7 +1,9 @@
+// Package repository provides data access layer for user module.
 package repository
 
 import (
 	"context"
+	"errors"
 
 	"gorm.io/gorm"
 
@@ -37,7 +39,7 @@ func (r *repository) GetByID(ctx context.Context, userID string) (*model.User, e
 		First(&user).Error
 
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, model.ErrUserNotFound
 		}
 		return nil, err
@@ -56,7 +58,7 @@ func (r *repository) UpdateIsActive(ctx context.Context, userID string, isActive
 		First(&user).Error
 
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, model.ErrUserNotFound
 		}
 		return nil, err

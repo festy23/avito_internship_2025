@@ -21,7 +21,10 @@ type mockService struct {
 	mock.Mock
 }
 
-func (m *mockService) SetIsActive(ctx context.Context, req *model.SetIsActiveRequest) (*model.SetIsActiveResponse, error) {
+func (m *mockService) SetIsActive(
+	ctx context.Context,
+	req *model.SetIsActiveRequest,
+) (*model.SetIsActiveResponse, error) {
 	args := m.Called(ctx, req)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)

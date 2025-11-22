@@ -1,3 +1,4 @@
+// Package user provides user module routes registration.
 package user
 
 import (

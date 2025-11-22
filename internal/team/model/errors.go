@@ -12,4 +12,3 @@ var (
 	// ErrEmptyMembers indicates that the members list is empty.
 	ErrEmptyMembers = errors.New("members list cannot be empty")
 )
-

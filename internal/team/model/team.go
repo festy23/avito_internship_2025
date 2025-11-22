@@ -24,4 +24,3 @@ func (t *Team) BeforeUpdate(tx *gorm.DB) error {
 	t.UpdatedAt = time.Now()
 	return nil
 }
-

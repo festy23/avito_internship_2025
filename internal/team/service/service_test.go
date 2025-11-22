@@ -106,7 +106,7 @@ func TestService_AddTeam_Integration(t *testing.T) {
 	t.Run("success with multiple members", func(t *testing.T) {
 		db := setupTestDB(t)
 
-		// Create tables
+		// Create tables with SQLite-compatible types
 		type Team struct {
 			TeamName  string    `gorm:"primaryKey;column:team_name"`
 			CreatedAt time.Time `gorm:"column:created_at"`

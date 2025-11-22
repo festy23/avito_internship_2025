@@ -1,5 +1,5 @@
-// Package team provides team module routes registration.
-package team
+// Package router provides team module routes registration.
+package router
 
 import (
 	"github.com/gin-gonic/gin"
@@ -19,3 +19,4 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB) {
 	r.POST("/team/add", h.AddTeam)
 	r.GET("/team/get", h.GetTeam)
 }
+

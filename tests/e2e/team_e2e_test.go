@@ -17,8 +17,8 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
-	"github.com/festy23/avito_internship/internal/team"
 	teamModel "github.com/festy23/avito_internship/internal/team/model"
+	teamRouter "github.com/festy23/avito_internship/internal/team/router"
 )
 
 type teamTestTeam struct {
@@ -73,7 +73,7 @@ func teamSetupE2EDB(t *testing.T) *gorm.DB {
 func teamSetupE2ERouter(db *gorm.DB) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	team.RegisterRoutes(r, db)
+	teamRouter.RegisterRoutes(r, db)
 	return r
 }
 

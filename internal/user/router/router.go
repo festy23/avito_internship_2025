@@ -1,5 +1,5 @@
-// Package user provides user module routes registration.
-package user
+// Package router provides user module routes registration.
+package router
 
 import (
 	"github.com/gin-gonic/gin"

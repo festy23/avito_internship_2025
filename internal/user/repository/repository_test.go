@@ -161,4 +161,3 @@ func TestRepository_GetAssignedPullRequests(t *testing.T) {
 		assert.Equal(t, "MERGED", prs[1].Status)
 	})
 }
-

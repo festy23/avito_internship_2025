@@ -1,8 +1,9 @@
+// Package model provides domain models and DTOs for user module.
 package model
 
 // SetIsActiveRequest represents the request to update user activity status.
 type SetIsActiveRequest struct {
-	UserID   string `json:"user_id" binding:"required"`
+	UserID   string `json:"user_id"   binding:"required"`
 	IsActive bool   `json:"is_active"`
 }
 
@@ -25,4 +26,3 @@ type GetReviewResponse struct {
 	UserID       string             `json:"user_id"`
 	PullRequests []PullRequestShort `json:"pull_requests"`
 }
-

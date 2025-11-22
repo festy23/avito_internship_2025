@@ -1,6 +1,8 @@
+// Package handler provides HTTP handlers for user endpoints.
 package handler
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -37,7 +39,7 @@ func (h *Handler) SetIsActive(c *gin.Context) {
 
 	resp, err := h.service.SetIsActive(c.Request.Context(), &req)
 	if err != nil {
-		if err == model.ErrUserNotFound {
+		if errors.Is(err, model.ErrUserNotFound) {
 			notFoundResponse(c, "user not found")
 			return
 		}
@@ -65,7 +67,7 @@ func (h *Handler) GetReview(c *gin.Context) {
 
 	resp, err := h.service.GetReview(c.Request.Context(), userID)
 	if err != nil {
-		if err == model.ErrUserNotFound {
+		if errors.Is(err, model.ErrUserNotFound) {
 			notFoundResponse(c, "user not found")
 			return
 		}
@@ -75,4 +77,3 @@ func (h *Handler) GetReview(c *gin.Context) {
 
 	c.JSON(http.StatusOK, resp)
 }
-

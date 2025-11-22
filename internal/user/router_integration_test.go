@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -16,39 +17,43 @@ import (
 	"github.com/festy23/avito_internship/internal/user/model"
 )
 
+type testUser struct {
+	UserID    string    `gorm:"primaryKey;column:user_id"`
+	Username  string    `gorm:"column:username;not null"`
+	TeamName  string    `gorm:"column:team_name;not null"`
+	IsActive  bool      `gorm:"column:is_active;not null;default:true"`
+	CreatedAt time.Time `gorm:"column:created_at"`
+	UpdatedAt time.Time `gorm:"column:updated_at"`
+}
+
+func (testUser) TableName() string {
+	return "users"
+}
+
 func setupIntegrationDB(t *testing.T) *gorm.DB {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
 
 	type Team struct {
-		TeamName  string `gorm:"primaryKey;column:team_name"`
-		CreatedAt string `gorm:"column:created_at"`
-		UpdatedAt string `gorm:"column:updated_at"`
-	}
-
-	type testUser struct {
-		UserID    string `gorm:"primaryKey;column:user_id"`
-		Username  string `gorm:"column:username;not null"`
-		TeamName  string `gorm:"column:team_name;not null"`
-		IsActive  bool   `gorm:"column:is_active;not null;default:true"`
-		CreatedAt string `gorm:"column:created_at"`
-		UpdatedAt string `gorm:"column:updated_at"`
+		TeamName  string    `gorm:"primaryKey;column:team_name"`
+		CreatedAt time.Time `gorm:"column:created_at"`
+		UpdatedAt time.Time `gorm:"column:updated_at"`
 	}
 
 	type PullRequest struct {
-		PullRequestID   string `gorm:"primaryKey;column:pull_request_id"`
-		PullRequestName string `gorm:"column:pull_request_name;not null"`
-		AuthorID        string `gorm:"column:author_id;not null"`
-		Status          string `gorm:"column:status;not null"`
-		CreatedAt       string `gorm:"column:created_at"`
-		MergedAt        string `gorm:"column:merged_at"`
+		PullRequestID   string     `gorm:"primaryKey;column:pull_request_id"`
+		PullRequestName string     `gorm:"column:pull_request_name;not null"`
+		AuthorID        string     `gorm:"column:author_id;not null"`
+		Status          string     `gorm:"column:status;not null"`
+		CreatedAt       time.Time  `gorm:"column:created_at"`
+		MergedAt        *time.Time `gorm:"column:merged_at"`
 	}
 
 	type PullRequestReviewer struct {
-		ID            int    `gorm:"primaryKey;autoIncrement"`
-		PullRequestID string `gorm:"column:pull_request_id;not null"`
-		UserID        string `gorm:"column:user_id;not null"`
-		AssignedAt    string `gorm:"column:assigned_at"`
+		ID            int       `gorm:"primaryKey;autoIncrement"`
+		PullRequestID string    `gorm:"column:pull_request_id;not null"`
+		UserID        string    `gorm:"column:user_id;not null"`
+		AssignedAt    time.Time `gorm:"column:assigned_at"`
 	}
 
 	err = db.AutoMigrate(&Team{}, &testUser{}, &PullRequest{}, &PullRequestReviewer{})
@@ -117,4 +122,3 @@ func TestIntegration_GetReview(t *testing.T) {
 	require.Len(t, resp.PullRequests, 1)
 	assert.Equal(t, "pr-1", resp.PullRequests[0].PullRequestID)
 }
-

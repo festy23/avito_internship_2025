@@ -10,7 +10,7 @@ formatters:
   settings:
     goimports:
       local-prefixes:
-        - avito-internship
+        - github.com/festy23/avito_internship
     golines:
       max-len: 120
 
@@ -26,8 +26,6 @@ linters:
     
     # Code style
     - revive
-    - gofmt
-    - goimports
     
     # Complexity
     - gocyclo

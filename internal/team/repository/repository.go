@@ -102,7 +102,11 @@ func (r *repository) GetByName(ctx context.Context, teamName string) (*teamModel
 }
 
 // CreateOrUpdateUser creates or updates a user in the team.
-func (r *repository) CreateOrUpdateUser(ctx context.Context, teamName, userID, username string, isActive bool) (*userModel.User, error) {
+func (r *repository) CreateOrUpdateUser(
+	ctx context.Context,
+	teamName, userID, username string,
+	isActive bool,
+) (*userModel.User, error) {
 	now := time.Now()
 	user := &userModel.User{
 		UserID:    userID,
@@ -134,7 +138,8 @@ func (r *repository) CreateOrUpdateUser(ctx context.Context, teamName, userID, u
 		err := r.db.WithContext(ctx).Exec(
 			"INSERT INTO users (user_id, username, team_name, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
 			userID, username, teamName, isActive, now, now,
-		).Error
+		).
+			Error
 		if err != nil {
 			return nil, err
 		}

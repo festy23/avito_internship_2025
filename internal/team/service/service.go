@@ -60,7 +60,7 @@ func (s *service) AddTeam(ctx context.Context, req *teamModel.AddTeamRequest) (*
 			if member.UserID == "" {
 				continue // Skip members with empty user_id
 			}
-			_, err := txRepo.CreateOrUpdateUser(ctx, req.TeamName, member.UserID, member.Username, member.IsActive)
+			_, err = txRepo.CreateOrUpdateUser(ctx, req.TeamName, member.UserID, member.Username, member.IsActive)
 			if err != nil {
 				return err
 			}

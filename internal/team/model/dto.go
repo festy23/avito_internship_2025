@@ -12,7 +12,7 @@ type TeamMember struct {
 // AddTeamRequest represents the request to create a team with members.
 type AddTeamRequest struct {
 	TeamName string       `json:"team_name" binding:"required"`
-	Members  []TeamMember `json:"members" binding:"required,dive"`
+	Members  []TeamMember `json:"members"   binding:"required,dive"`
 }
 
 // TeamResponse represents the response after creating or getting a team.
@@ -20,4 +20,3 @@ type TeamResponse struct {
 	TeamName string       `json:"team_name"`
 	Members  []TeamMember `json:"members"`
 }
-

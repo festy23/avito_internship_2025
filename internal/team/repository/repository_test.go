@@ -288,4 +288,3 @@ func TestRepository_EdgeCases(t *testing.T) {
 		assert.Equal(t, int64(1), count)
 	})
 }
-

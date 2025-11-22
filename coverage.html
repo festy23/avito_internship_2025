@@ -1,0 +1,980 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>server: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/festy23/avito_internship/cmd/server/main.go (0.0%)</option>
+				
+				<option value="file1">github.com/festy23/avito_internship/internal/team/handler/handler.go (93.9%)</option>
+				
+				<option value="file2">github.com/festy23/avito_internship/internal/team/handler/response.go (100.0%)</option>
+				
+				<option value="file3">github.com/festy23/avito_internship/internal/team/model/team.go (0.0%)</option>
+				
+				<option value="file4">github.com/festy23/avito_internship/internal/team/repository/repository.go (84.1%)</option>
+				
+				<option value="file5">github.com/festy23/avito_internship/internal/team/router.go (100.0%)</option>
+				
+				<option value="file6">github.com/festy23/avito_internship/internal/team/service/service.go (97.1%)</option>
+				
+				<option value="file7">github.com/festy23/avito_internship/internal/user/handler/handler.go (62.1%)</option>
+				
+				<option value="file8">github.com/festy23/avito_internship/internal/user/handler/response.go (100.0%)</option>
+				
+				<option value="file9">github.com/festy23/avito_internship/internal/user/model/user.go (0.0%)</option>
+				
+				<option value="file10">github.com/festy23/avito_internship/internal/user/repository/repository.go (84.0%)</option>
+				
+				<option value="file11">github.com/festy23/avito_internship/internal/user/router.go (100.0%)</option>
+				
+				<option value="file12">github.com/festy23/avito_internship/internal/user/service/service.go (100.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">// Package main provides the entry point for the HTTP server.
+package main
+
+import (
+        "fmt"
+        "log"
+        "os"
+
+        "github.com/gin-gonic/gin"
+        "gorm.io/driver/postgres"
+        "gorm.io/gorm"
+
+        "github.com/festy23/avito_internship/internal/team"
+        "github.com/festy23/avito_internship/internal/user"
+)
+
+// getEnv reads an environment variable with a default fallback.
+func getEnv(key, defaultValue string) string <span class="cov0" title="0">{
+        if value := os.Getenv(key); value != "" </span><span class="cov0" title="0">{
+                return value
+        }</span>
+        <span class="cov0" title="0">return defaultValue</span>
+}
+
+func main() <span class="cov0" title="0">{
+        // Build DSN from environment variables
+        host := getEnv("DB_HOST", "localhost")
+        dbUser := getEnv("DB_USER", "postgres")
+        password := getEnv("DB_PASSWORD", "postgres")
+        dbname := getEnv("DB_NAME", "avito_internship")
+        port := getEnv("DB_PORT", "5432")
+        sslmode := getEnv("DB_SSLMODE", "disable")
+        timezone := getEnv("DB_TIMEZONE", "UTC")
+
+        dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=%s",
+                host, dbUser, password, dbname, port, sslmode, timezone)
+
+        db, err := gorm.Open(postgres.Open(dsn), &amp;gorm.Config{})
+        if err != nil </span><span class="cov0" title="0">{
+                log.Fatalf("failed to connect to database: %v", err)
+        }</span>
+
+        <span class="cov0" title="0">r := gin.Default()
+
+        team.RegisterRoutes(r, db)
+        user.RegisterRoutes(r, db)
+
+        serverPort := getEnv("SERVER_PORT", ":8080")
+        if err := r.Run(serverPort); err != nil </span><span class="cov0" title="0">{
+                log.Fatalf("failed to start server: %v", err)
+        }</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">// Package handler provides HTTP handlers for team endpoints.
+package handler
+
+import (
+        "errors"
+        "log"
+        "net/http"
+
+        "github.com/gin-gonic/gin"
+
+        teamModel "github.com/festy23/avito_internship/internal/team/model"
+        "github.com/festy23/avito_internship/internal/team/service"
+)
+
+// Handler handles HTTP requests for team endpoints.
+type Handler struct {
+        service service.Service
+}
+
+// New creates a new team handler instance.
+func New(svc service.Service) *Handler <span class="cov8" title="1">{
+        return &amp;Handler{service: svc}
+}</span>
+
+// AddTeam handles POST /team/add request.
+// @Summary Create a team with members
+// @Tags Teams
+// @Accept json
+// @Produce json
+// @Param request body teamModel.AddTeamRequest true "Request"
+// @Success 201 {object} teamModel.TeamResponse
+// @Failure 400 {object} ErrorResponse
+// @Router /team/add [post] //nolint:godot // Swagger annotation should not end with period
+func (h *Handler) AddTeam(c *gin.Context) <span class="cov8" title="1">{
+        var req teamModel.AddTeamRequest
+        if err := c.ShouldBindJSON(&amp;req); err != nil </span><span class="cov8" title="1">{
+                errorResponse(c, "INVALID_REQUEST", "invalid request body", http.StatusBadRequest)
+                return
+        }</span>
+
+        <span class="cov8" title="1">resp, err := h.service.AddTeam(c.Request.Context(), &amp;req)
+        if err != nil </span><span class="cov8" title="1">{
+                if errors.Is(err, teamModel.ErrTeamExists) </span><span class="cov8" title="1">{
+                        errorResponse(c, "TEAM_EXISTS", "team_name already exists", http.StatusBadRequest)
+                        return
+                }</span>
+                <span class="cov8" title="1">if errors.Is(err, teamModel.ErrInvalidTeamName) </span><span class="cov0" title="0">{
+                        errorResponse(c, "INVALID_REQUEST", "team_name is required", http.StatusBadRequest)
+                        return
+                }</span>
+                <span class="cov8" title="1">if errors.Is(err, teamModel.ErrEmptyMembers) </span><span class="cov8" title="1">{
+                        errorResponse(c, "INVALID_REQUEST", "members list cannot be empty", http.StatusBadRequest)
+                        return
+                }</span>
+                <span class="cov8" title="1">log.Printf("error adding team: %v", err)
+                errorResponse(c, "INTERNAL_ERROR", "internal server error", http.StatusInternalServerError)
+                return</span>
+        }
+
+        <span class="cov8" title="1">c.JSON(http.StatusCreated, map[string]interface{}{
+                "team": resp,
+        })</span>
+}
+
+// GetTeam handles GET /team/get request.
+// @Summary Get a team with members
+// @Tags Teams
+// @Produce json
+// @Param team_name query string true "Team Name"
+// @Success 200 {object} teamModel.TeamResponse
+// @Failure 404 {object} ErrorResponse
+// @Router /team/get [get] //nolint:godot // Swagger annotation should not end with period
+func (h *Handler) GetTeam(c *gin.Context) <span class="cov8" title="1">{
+        teamName := c.Query("team_name")
+        if teamName == "" </span><span class="cov8" title="1">{
+                errorResponse(c, "INVALID_REQUEST", "team_name parameter is required", http.StatusBadRequest)
+                return
+        }</span>
+
+        <span class="cov8" title="1">resp, err := h.service.GetTeam(c.Request.Context(), teamName)
+        if err != nil </span><span class="cov8" title="1">{
+                if errors.Is(err, teamModel.ErrTeamNotFound) </span><span class="cov8" title="1">{
+                        notFoundResponse(c, "team not found")
+                        return
+                }</span>
+                <span class="cov8" title="1">log.Printf("error getting team %s: %v", teamName, err)
+                errorResponse(c, "INTERNAL_ERROR", "internal server error", http.StatusInternalServerError)
+                return</span>
+        }
+
+        <span class="cov8" title="1">c.JSON(http.StatusOK, resp)</span>
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package handler
+
+import (
+        "github.com/gin-gonic/gin"
+)
+
+// ErrorResponse represents error response structure matching OpenAPI spec.
+type ErrorResponse struct {
+        Error struct {
+                Code    string `json:"code"`
+                Message string `json:"message"`
+        } `json:"error"`
+}
+
+// errorResponse creates error response matching OpenAPI spec.
+func errorResponse(c *gin.Context, code string, message string, statusCode int) <span class="cov8" title="1">{
+        resp := ErrorResponse{}
+        resp.Error.Code = code
+        resp.Error.Message = message
+        c.JSON(statusCode, resp)
+}</span>
+
+// notFoundResponse creates 404 error response.
+func notFoundResponse(c *gin.Context, message string) <span class="cov8" title="1">{
+        errorResponse(c, "NOT_FOUND", message, 404)
+}</span>
+
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">package model
+
+import (
+        "time"
+
+        "gorm.io/gorm"
+)
+
+// Team represents a team entity in the system.
+// Matches the teams table schema.
+type Team struct {
+        TeamName  string    `gorm:"primaryKey;column:team_name;type:varchar(255)" json:"team_name"`
+        CreatedAt time.Time `gorm:"column:created_at;type:timestamptz;not null;default:now()" json:"-"`
+        UpdatedAt time.Time `gorm:"column:updated_at;type:timestamptz;not null;default:now()" json:"-"`
+}
+
+// TableName specifies the table name for GORM.
+func (Team) TableName() string <span class="cov0" title="0">{
+        return "teams"
+}</span>
+
+// BeforeUpdate updates the UpdatedAt timestamp before saving.
+func (t *Team) BeforeUpdate(tx *gorm.DB) error <span class="cov0" title="0">{
+        t.UpdatedAt = time.Now()
+        return nil
+}</span>
+</pre>
+		
+		<pre class="file" id="file4" style="display: none">// Package repository provides data access layer for team module.
+package repository
+
+import (
+        "context"
+        "errors"
+        "time"
+
+        "gorm.io/gorm"
+
+        teamModel "github.com/festy23/avito_internship/internal/team/model"
+        userModel "github.com/festy23/avito_internship/internal/user/model"
+)
+
+// Repository defines the interface for team data access operations.
+type Repository interface {
+        // Create creates a new team.
+        Create(ctx context.Context, teamName string) (*teamModel.Team, error)
+
+        // GetByName finds team by team_name.
+        GetByName(ctx context.Context, teamName string) (*teamModel.Team, error)
+
+        // CreateOrUpdateUser creates or updates a user in the team.
+        CreateOrUpdateUser(ctx context.Context, teamName, userID, username string, isActive bool) (*userModel.User, error)
+
+        // GetTeamMembers returns all members of a team.
+        GetTeamMembers(ctx context.Context, teamName string) ([]teamModel.TeamMember, error)
+}
+
+type repository struct {
+        db *gorm.DB
+}
+
+// New creates a new team repository instance.
+func New(db *gorm.DB) Repository <span class="cov8" title="1">{
+        return &amp;repository{db: db}
+}</span>
+
+// Create creates a new team.
+func (r *repository) Create(ctx context.Context, teamName string) (*teamModel.Team, error) <span class="cov8" title="1">{
+        now := time.Now()
+        team := &amp;teamModel.Team{
+                TeamName:  teamName,
+                CreatedAt: now,
+                UpdatedAt: now,
+        }
+
+        err := r.db.WithContext(ctx).Create(team).Error
+        if err != nil </span><span class="cov8" title="1">{
+                // Check for unique constraint violation
+                if errors.Is(err, gorm.ErrDuplicatedKey) || isDuplicateError(err) </span><span class="cov8" title="1">{
+                        return nil, teamModel.ErrTeamExists
+                }</span>
+                <span class="cov0" title="0">return nil, err</span>
+        }
+
+        <span class="cov8" title="1">return team, nil</span>
+}
+
+// isDuplicateError checks if error is a duplicate key error.
+func isDuplicateError(err error) bool <span class="cov8" title="1">{
+        if err == nil </span><span class="cov0" title="0">{
+                return false
+        }</span>
+        // PostgreSQL duplicate key error code
+        <span class="cov8" title="1">return errors.Is(err, gorm.ErrDuplicatedKey) ||
+                (err.Error() != "" &amp;&amp; (
+                // Check for common duplicate key error messages
+                contains(err.Error(), "duplicate key") ||
+                        contains(err.Error(), "UNIQUE constraint")))</span>
+}
+
+func contains(s, substr string) bool <span class="cov8" title="1">{
+        return len(s) &gt;= len(substr) &amp;&amp; (s == substr || len(substr) == 0 ||
+                (len(s) &gt; 0 &amp;&amp; len(substr) &gt; 0 &amp;&amp; findSubstring(s, substr)))
+}</span>
+
+func findSubstring(s, substr string) bool <span class="cov8" title="1">{
+        for i := 0; i &lt;= len(s)-len(substr); i++ </span><span class="cov8" title="1">{
+                if s[i:i+len(substr)] == substr </span><span class="cov8" title="1">{
+                        return true
+                }</span>
+        }
+        <span class="cov8" title="1">return false</span>
+}
+
+// GetByName finds team by team_name.
+func (r *repository) GetByName(ctx context.Context, teamName string) (*teamModel.Team, error) <span class="cov8" title="1">{
+        var team teamModel.Team
+        err := r.db.WithContext(ctx).
+                Where("team_name = ?", teamName).
+                First(&amp;team).Error
+
+        if err != nil </span><span class="cov8" title="1">{
+                if errors.Is(err, gorm.ErrRecordNotFound) </span><span class="cov8" title="1">{
+                        return nil, teamModel.ErrTeamNotFound
+                }</span>
+                <span class="cov0" title="0">return nil, err</span>
+        }
+
+        <span class="cov8" title="1">return &amp;team, nil</span>
+}
+
+// CreateOrUpdateUser creates or updates a user in the team.
+func (r *repository) CreateOrUpdateUser(ctx context.Context, teamName, userID, username string, isActive bool) (*userModel.User, error) <span class="cov8" title="1">{
+        now := time.Now()
+        user := &amp;userModel.User{
+                UserID:    userID,
+                Username:  username,
+                TeamName:  teamName,
+                IsActive:  isActive,
+                CreatedAt: now,
+                UpdatedAt: now,
+        }
+
+        // Try to update first
+        result := r.db.WithContext(ctx).
+                Model(&amp;userModel.User{}).
+                Where("user_id = ?", userID).
+                Updates(map[string]interface{}{
+                        "username":   username,
+                        "team_name":  teamName,
+                        "is_active":  isActive,
+                        "updated_at": now,
+                })
+
+        if result.Error != nil </span><span class="cov0" title="0">{
+                return nil, result.Error
+        }</span>
+
+        // If no rows were affected, insert new user
+        <span class="cov8" title="1">if result.RowsAffected == 0 </span><span class="cov8" title="1">{
+                // Use Exec with raw SQL to ensure exact values are inserted
+                err := r.db.WithContext(ctx).Exec(
+                        "INSERT INTO users (user_id, username, team_name, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+                        userID, username, teamName, isActive, now, now,
+                ).Error
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, err
+                }</span>
+        } else<span class="cov8" title="1"> {
+                // Fetch updated user
+                err := r.db.WithContext(ctx).Where("user_id = ?", userID).First(user).Error
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, err
+                }</span>
+        }
+
+        <span class="cov8" title="1">return user, nil</span>
+}
+
+// GetTeamMembers returns all members of a team.
+func (r *repository) GetTeamMembers(ctx context.Context, teamName string) ([]teamModel.TeamMember, error) <span class="cov8" title="1">{
+        var members []teamModel.TeamMember
+
+        err := r.db.WithContext(ctx).
+                Table("users").
+                Select("user_id, username, is_active").
+                Where("team_name = ?", teamName).
+                Order("user_id ASC").
+                Scan(&amp;members).Error
+
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">if members == nil </span><span class="cov8" title="1">{
+                return []teamModel.TeamMember{}, nil
+        }</span>
+
+        <span class="cov8" title="1">return members, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file5" style="display: none">// Package team provides team module routes registration.
+package team
+
+import (
+        "github.com/gin-gonic/gin"
+        "gorm.io/gorm"
+
+        "github.com/festy23/avito_internship/internal/team/handler"
+        "github.com/festy23/avito_internship/internal/team/repository"
+        "github.com/festy23/avito_internship/internal/team/service"
+)
+
+// RegisterRoutes registers team module routes.
+func RegisterRoutes(r *gin.Engine, db *gorm.DB) <span class="cov8" title="1">{
+        repo := repository.New(db)
+        svc := service.New(repo, db)
+        h := handler.New(svc)
+
+        r.POST("/team/add", h.AddTeam)
+        r.GET("/team/get", h.GetTeam)
+}</span>
+</pre>
+		
+		<pre class="file" id="file6" style="display: none">// Package service provides business logic layer for team module.
+package service
+
+import (
+        "context"
+
+        "gorm.io/gorm"
+
+        teamModel "github.com/festy23/avito_internship/internal/team/model"
+        "github.com/festy23/avito_internship/internal/team/repository"
+)
+
+// Service defines the interface for team business logic operations.
+type Service interface {
+        // AddTeam creates a new team with members.
+        AddTeam(ctx context.Context, req *teamModel.AddTeamRequest) (*teamModel.TeamResponse, error)
+
+        // GetTeam returns a team with its members.
+        GetTeam(ctx context.Context, teamName string) (*teamModel.TeamResponse, error)
+}
+
+type service struct {
+        repo repository.Repository
+        db   *gorm.DB
+}
+
+// New creates a new team service instance.
+func New(repo repository.Repository, db *gorm.DB) Service <span class="cov8" title="1">{
+        return &amp;service{
+                repo: repo,
+                db:   db,
+        }
+}</span>
+
+// AddTeam creates a new team with members in a transaction.
+func (s *service) AddTeam(ctx context.Context, req *teamModel.AddTeamRequest) (*teamModel.TeamResponse, error) <span class="cov8" title="1">{
+        // Validate input
+        if req.TeamName == "" </span><span class="cov8" title="1">{
+                return nil, teamModel.ErrInvalidTeamName
+        }</span>
+
+        <span class="cov8" title="1">if len(req.Members) == 0 </span><span class="cov8" title="1">{
+                return nil, teamModel.ErrEmptyMembers
+        }</span>
+
+        // Use transaction to ensure atomicity
+        <span class="cov8" title="1">var result *teamModel.TeamResponse
+        err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error </span><span class="cov8" title="1">{
+                // Create repository with transaction
+                txRepo := repository.New(tx)
+
+                // Create team
+                _, err := txRepo.Create(ctx, req.TeamName)
+                if err != nil </span><span class="cov8" title="1">{
+                        return err
+                }</span>
+
+                // Create or update all members
+                <span class="cov8" title="1">for _, member := range req.Members </span><span class="cov8" title="1">{
+                        if member.UserID == "" </span><span class="cov8" title="1">{
+                                continue</span> // Skip members with empty user_id
+                        }
+                        <span class="cov8" title="1">_, err := txRepo.CreateOrUpdateUser(ctx, req.TeamName, member.UserID, member.Username, member.IsActive)
+                        if err != nil </span><span class="cov8" title="1">{
+                                return err
+                        }</span>
+                }
+
+                // Fetch team members
+                <span class="cov8" title="1">members, err := txRepo.GetTeamMembers(ctx, req.TeamName)
+                if err != nil </span><span class="cov0" title="0">{
+                        return err
+                }</span>
+
+                <span class="cov8" title="1">result = &amp;teamModel.TeamResponse{
+                        TeamName: req.TeamName,
+                        Members:  members,
+                }
+
+                return nil</span>
+        })
+
+        <span class="cov8" title="1">if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">return result, nil</span>
+}
+
+// GetTeam returns a team with its members.
+func (s *service) GetTeam(ctx context.Context, teamName string) (*teamModel.TeamResponse, error) <span class="cov8" title="1">{
+        if teamName == "" </span><span class="cov8" title="1">{
+                return nil, teamModel.ErrInvalidTeamName
+        }</span>
+
+        // Check if team exists
+        <span class="cov8" title="1">_, err := s.repo.GetByName(ctx, teamName)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+
+        // Get team members
+        <span class="cov8" title="1">members, err := s.repo.GetTeamMembers(ctx, teamName)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">return &amp;teamModel.TeamResponse{
+                TeamName: teamName,
+                Members:  members,
+        }, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file7" style="display: none">// Package handler provides HTTP handlers for user endpoints.
+package handler
+
+import (
+        "errors"
+        "log"
+        "net/http"
+
+        "github.com/gin-gonic/gin"
+
+        "github.com/festy23/avito_internship/internal/user/model"
+        "github.com/festy23/avito_internship/internal/user/service"
+)
+
+// Handler handles HTTP requests for user endpoints.
+type Handler struct {
+        service service.Service
+}
+
+// New creates a new user handler instance.
+func New(svc service.Service) *Handler <span class="cov8" title="1">{
+        return &amp;Handler{service: svc}
+}</span>
+
+// SetIsActive handles POST /users/setIsActive request.
+// @Summary Set user activity status
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Param request body model.SetIsActiveRequest true "Request"
+// @Success 200 {object} model.SetIsActiveResponse
+// @Failure 404 {object} ErrorResponse
+// @Router /users/setIsActive [post] //nolint:godot // Swagger annotation should not end with period
+func (h *Handler) SetIsActive(c *gin.Context) <span class="cov8" title="1">{
+        var req model.SetIsActiveRequest
+        if err := c.ShouldBindJSON(&amp;req); err != nil </span><span class="cov8" title="1">{
+                errorResponse(c, "INVALID_REQUEST", "invalid request body", http.StatusBadRequest)
+                return
+        }</span>
+
+        <span class="cov8" title="1">resp, err := h.service.SetIsActive(c.Request.Context(), &amp;req)
+        if err != nil </span><span class="cov8" title="1">{
+                if errors.Is(err, model.ErrUserNotFound) </span><span class="cov8" title="1">{
+                        notFoundResponse(c, "user not found")
+                        return
+                }</span>
+                <span class="cov0" title="0">if errors.Is(err, model.ErrInvalidIsActive) </span><span class="cov0" title="0">{
+                        errorResponse(c, "INVALID_REQUEST", "is_active field is required", http.StatusBadRequest)
+                        return
+                }</span>
+                <span class="cov0" title="0">errorResponse(c, "INTERNAL_ERROR", "internal server error", http.StatusInternalServerError)
+                return</span>
+        }
+
+        <span class="cov8" title="1">c.JSON(http.StatusOK, resp)</span>
+}
+
+// GetReview handles GET /users/getReview request.
+// Returns 200 with empty list for nonexistent users rather than 404.
+// @Summary Get PRs assigned to user
+// @Tags Users
+// @Produce json
+// @Param user_id query string true "User ID"
+// @Success 200 {object} model.GetReviewResponse
+// @Failure 400 {object} ErrorResponse
+// @Router /users/getReview [get] //nolint:godot // Swagger annotation should not end with period
+func (h *Handler) GetReview(c *gin.Context) <span class="cov8" title="1">{
+        userID := c.Query("user_id")
+        if userID == "" </span><span class="cov8" title="1">{
+                errorResponse(c, "INVALID_REQUEST", "user_id parameter is required", http.StatusBadRequest)
+                return
+        }</span>
+
+        <span class="cov8" title="1">resp, err := h.service.GetReview(c.Request.Context(), userID)
+        if err != nil </span><span class="cov0" title="0">{
+                if errors.Is(err, model.ErrUserNotFound) </span><span class="cov0" title="0">{
+                        c.JSON(http.StatusOK, &amp;model.GetReviewResponse{
+                                UserID:       userID,
+                                PullRequests: []model.PullRequestShort{},
+                        })
+                        return
+                }</span>
+                <span class="cov0" title="0">log.Printf("error getting review for user %s: %v", userID, err)
+                errorResponse(c, "INTERNAL_ERROR", "internal server error", http.StatusInternalServerError)
+                return</span>
+        }
+
+        <span class="cov8" title="1">c.JSON(http.StatusOK, resp)</span>
+}
+</pre>
+		
+		<pre class="file" id="file8" style="display: none">package handler
+
+import (
+        "github.com/gin-gonic/gin"
+)
+
+// ErrorResponse represents error response structure matching OpenAPI spec.
+type ErrorResponse struct {
+        Error struct {
+                Code    string `json:"code"`
+                Message string `json:"message"`
+        } `json:"error"`
+}
+
+// errorResponse creates error response matching OpenAPI spec.
+func errorResponse(c *gin.Context, code string, message string, statusCode int) <span class="cov8" title="1">{
+        resp := ErrorResponse{}
+        resp.Error.Code = code
+        resp.Error.Message = message
+        c.JSON(statusCode, resp)
+}</span>
+
+// notFoundResponse creates 404 error response.
+func notFoundResponse(c *gin.Context, message string) <span class="cov8" title="1">{
+        errorResponse(c, "NOT_FOUND", message, 404)
+}</span>
+</pre>
+		
+		<pre class="file" id="file9" style="display: none">package model
+
+import (
+        "time"
+
+        "gorm.io/gorm"
+)
+
+// User represents a user entity in the system.
+// Matches the users table schema.
+type User struct {
+        UserID    string    `gorm:"primaryKey;column:user_id;type:varchar(255)"                                                         json:"user_id"`
+        Username  string    `gorm:"column:username;type:varchar(255);not null"                                                          json:"username"`
+        TeamName  string    `gorm:"column:team_name;type:varchar(255);not null;index:idx_users_team_name"                               json:"team_name"`
+        IsActive  bool      `gorm:"column:is_active;type:boolean;not null;default:true;index:idx_users_team_active,composite:team_name" json:"is_active"`
+        CreatedAt time.Time `gorm:"column:created_at;type:timestamptz;not null;default:now()"                                           json:"-"`
+        UpdatedAt time.Time `gorm:"column:updated_at;type:timestamptz;not null;default:now()"                                           json:"-"`
+}
+
+// TableName specifies the table name for GORM.
+func (User) TableName() string <span class="cov0" title="0">{
+        return "users"
+}</span>
+
+// BeforeUpdate updates the UpdatedAt timestamp before saving.
+func (u *User) BeforeUpdate(tx *gorm.DB) error <span class="cov0" title="0">{
+        u.UpdatedAt = time.Now()
+        return nil
+}</span>
+</pre>
+		
+		<pre class="file" id="file10" style="display: none">// Package repository provides data access layer for user module.
+package repository
+
+import (
+        "context"
+        "errors"
+
+        "gorm.io/gorm"
+
+        "github.com/festy23/avito_internship/internal/user/model"
+)
+
+// Repository defines the interface for user data access operations.
+type Repository interface {
+        // GetByID finds user by user_id.
+        GetByID(ctx context.Context, userID string) (*model.User, error)
+
+        // UpdateIsActive updates user's is_active flag.
+        UpdateIsActive(ctx context.Context, userID string, isActive bool) (*model.User, error)
+
+        // GetAssignedPullRequests returns PRs where user is reviewer.
+        GetAssignedPullRequests(ctx context.Context, userID string) ([]model.PullRequestShort, error)
+}
+
+type repository struct {
+        db *gorm.DB
+}
+
+// New creates a new user repository instance.
+func New(db *gorm.DB) Repository <span class="cov8" title="1">{
+        return &amp;repository{db: db}
+}</span>
+
+// GetByID finds user by user_id.
+func (r *repository) GetByID(ctx context.Context, userID string) (*model.User, error) <span class="cov8" title="1">{
+        var user model.User
+        err := r.db.WithContext(ctx).
+                Where("user_id = ?", userID).
+                First(&amp;user).Error
+
+        if err != nil </span><span class="cov8" title="1">{
+                if errors.Is(err, gorm.ErrRecordNotFound) </span><span class="cov8" title="1">{
+                        return nil, model.ErrUserNotFound
+                }</span>
+                <span class="cov0" title="0">return nil, err</span>
+        }
+
+        <span class="cov8" title="1">return &amp;user, nil</span>
+}
+
+// UpdateIsActive updates user's is_active flag using RETURNING clause for atomicity.
+func (r *repository) UpdateIsActive(ctx context.Context, userID string, isActive bool) (*model.User, error) <span class="cov8" title="1">{
+        var user model.User
+        result := r.db.WithContext(ctx).
+                Model(&amp;model.User{}).
+                Where("user_id = ?", userID).
+                Update("is_active", isActive)
+
+        if result.Error != nil </span><span class="cov0" title="0">{
+                return nil, result.Error
+        }</span>
+
+        <span class="cov8" title="1">if result.RowsAffected == 0 </span><span class="cov8" title="1">{
+                return nil, model.ErrUserNotFound
+        }</span>
+
+        // Fetch updated user
+        <span class="cov8" title="1">err := r.db.WithContext(ctx).
+                Where("user_id = ?", userID).
+                First(&amp;user).Error
+
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">return &amp;user, nil</span>
+}
+
+// GetAssignedPullRequests returns PRs where user is reviewer.
+func (r *repository) GetAssignedPullRequests(ctx context.Context, userID string) ([]model.PullRequestShort, error) <span class="cov8" title="1">{
+        var prs []model.PullRequestShort
+
+        err := r.db.WithContext(ctx).
+                Table("pull_request_reviewers").
+                Select("pull_requests.pull_request_id, pull_requests.pull_request_name, pull_requests.author_id, pull_requests.status").
+                Joins("JOIN pull_requests ON pull_request_reviewers.pull_request_id = pull_requests.pull_request_id").
+                Where("pull_request_reviewers.user_id = ?", userID).
+                Order("pull_requests.created_at DESC").
+                Scan(&amp;prs).Error
+
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">if prs == nil </span><span class="cov8" title="1">{
+                return []model.PullRequestShort{}, nil
+        }</span>
+
+        <span class="cov8" title="1">return prs, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file11" style="display: none">// Package user provides user module routes registration.
+package user
+
+import (
+        "github.com/gin-gonic/gin"
+        "gorm.io/gorm"
+
+        "github.com/festy23/avito_internship/internal/user/handler"
+        "github.com/festy23/avito_internship/internal/user/repository"
+        "github.com/festy23/avito_internship/internal/user/service"
+)
+
+// RegisterRoutes registers user module routes.
+func RegisterRoutes(r *gin.Engine, db *gorm.DB) <span class="cov8" title="1">{
+        repo := repository.New(db)
+        svc := service.New(repo)
+        h := handler.New(svc)
+
+        r.POST("/users/setIsActive", h.SetIsActive)
+        r.GET("/users/getReview", h.GetReview)
+}</span>
+</pre>
+		
+		<pre class="file" id="file12" style="display: none">// Package service provides business logic layer for user module.
+package service
+
+import (
+        "context"
+
+        "github.com/festy23/avito_internship/internal/user/model"
+        "github.com/festy23/avito_internship/internal/user/repository"
+)
+
+// Service defines the interface for user business logic operations.
+type Service interface {
+        // SetIsActive updates user activity status.
+        SetIsActive(ctx context.Context, req *model.SetIsActiveRequest) (*model.SetIsActiveResponse, error)
+
+        // GetReview returns PRs assigned to user.
+        GetReview(ctx context.Context, userID string) (*model.GetReviewResponse, error)
+}
+
+type service struct {
+        repo repository.Repository
+}
+
+// New creates a new user service instance.
+func New(repo repository.Repository) Service <span class="cov8" title="1">{
+        return &amp;service{repo: repo}
+}</span>
+
+// SetIsActive updates user activity status.
+func (s *service) SetIsActive(ctx context.Context, req *model.SetIsActiveRequest) (*model.SetIsActiveResponse, error) <span class="cov8" title="1">{
+        if req.UserID == "" </span><span class="cov8" title="1">{
+                return nil, model.ErrUserNotFound
+        }</span>
+
+        <span class="cov8" title="1">if req.IsActive == nil </span><span class="cov8" title="1">{
+                return nil, model.ErrInvalidIsActive
+        }</span>
+
+        <span class="cov8" title="1">user, err := s.repo.UpdateIsActive(ctx, req.UserID, *req.IsActive)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">return &amp;model.SetIsActiveResponse{User: *user}, nil</span>
+}
+
+// GetReview returns PRs assigned to user.
+func (s *service) GetReview(ctx context.Context, userID string) (*model.GetReviewResponse, error) <span class="cov8" title="1">{
+        if userID == "" </span><span class="cov8" title="1">{
+                return nil, model.ErrUserNotFound
+        }</span>
+
+        <span class="cov8" title="1">prs, err := s.repo.GetAssignedPullRequests(ctx, userID)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">return &amp;model.GetReviewResponse{
+                UserID:       userID,
+                PullRequests: prs,
+        }, nil</span>
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

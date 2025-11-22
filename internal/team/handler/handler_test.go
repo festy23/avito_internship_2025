@@ -331,4 +331,3 @@ func TestHandler_GetTeam(t *testing.T) {
 		mockSvc.AssertExpectations(t)
 	})
 }
-

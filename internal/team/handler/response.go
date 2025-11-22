@@ -24,4 +24,3 @@ func errorResponse(c *gin.Context, code string, message string, statusCode int) 
 func notFoundResponse(c *gin.Context, message string) {
 	errorResponse(c, "NOT_FOUND", message, 404)
 }
-

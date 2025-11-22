@@ -21,17 +21,17 @@ import (
 	teamModel "github.com/festy23/avito_internship/internal/team/model"
 )
 
-type testTeam struct {
+type teamTestTeam struct {
 	TeamName  string    `gorm:"primaryKey;column:team_name"`
 	CreatedAt time.Time `gorm:"column:created_at"`
 	UpdatedAt time.Time `gorm:"column:updated_at"`
 }
 
-func (testTeam) TableName() string {
+func (teamTestTeam) TableName() string {
 	return "teams"
 }
 
-type testUser struct {
+type teamTestUser struct {
 	UserID    string    `gorm:"primaryKey;column:user_id"`
 	Username  string    `gorm:"column:username;not null"`
 	TeamName  string    `gorm:"column:team_name;not null"`
@@ -40,11 +40,11 @@ type testUser struct {
 	UpdatedAt time.Time `gorm:"column:updated_at"`
 }
 
-func (testUser) TableName() string {
+func (teamTestUser) TableName() string {
 	return "users"
 }
 
-func setupE2EDB(t *testing.T) *gorm.DB {
+func teamSetupE2EDB(t *testing.T) *gorm.DB {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
 
@@ -64,13 +64,13 @@ func setupE2EDB(t *testing.T) *gorm.DB {
 		AssignedAt    time.Time `gorm:"column:assigned_at"`
 	}
 
-	err = db.AutoMigrate(&testTeam{}, &testUser{}, &PullRequest{}, &PullRequestReviewer{})
+	err = db.AutoMigrate(&teamTestTeam{}, &teamTestUser{}, &PullRequest{}, &PullRequestReviewer{})
 	require.NoError(t, err)
 
 	return db
 }
 
-func setupE2ERouter(db *gorm.DB) *gin.Engine {
+func teamSetupE2ERouter(db *gorm.DB) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	team.RegisterRoutes(r, db)
@@ -79,8 +79,8 @@ func setupE2ERouter(db *gorm.DB) *gin.Engine {
 
 func TestE2E_TeamLifecycle(t *testing.T) {
 	t.Run("complete team lifecycle", func(t *testing.T) {
-		db := setupE2EDB(t)
-		router := setupE2ERouter(db)
+		db := teamSetupE2EDB(t)
+		router := teamSetupE2ERouter(db)
 
 		// Step 1: Create team
 		createReq := &teamModel.AddTeamRequest{
@@ -138,8 +138,8 @@ func TestE2E_TeamLifecycle(t *testing.T) {
 
 func TestE2E_MultipleTeams(t *testing.T) {
 	t.Run("create and retrieve multiple teams", func(t *testing.T) {
-		db := setupE2EDB(t)
-		router := setupE2ERouter(db)
+		db := teamSetupE2EDB(t)
+		router := teamSetupE2ERouter(db)
 
 		// Create first team
 		team1Req := &teamModel.AddTeamRequest{
@@ -201,8 +201,8 @@ func TestE2E_MultipleTeams(t *testing.T) {
 
 func TestE2E_TeamWithSpecialCharacters(t *testing.T) {
 	t.Run("team name with special characters", func(t *testing.T) {
-		db := setupE2EDB(t)
-		router := setupE2ERouter(db)
+		db := teamSetupE2EDB(t)
+		router := teamSetupE2ERouter(db)
 
 		createReq := &teamModel.AddTeamRequest{
 			TeamName: "team-with-dashes_and_underscores.123",
@@ -231,8 +231,8 @@ func TestE2E_TeamWithSpecialCharacters(t *testing.T) {
 	})
 
 	t.Run("user with unicode characters", func(t *testing.T) {
-		db := setupE2EDB(t)
-		router := setupE2ERouter(db)
+		db := teamSetupE2EDB(t)
+		router := teamSetupE2ERouter(db)
 
 		createReq := &teamModel.AddTeamRequest{
 			TeamName: "international",
@@ -265,8 +265,8 @@ func TestE2E_TeamWithSpecialCharacters(t *testing.T) {
 
 func TestE2E_ErrorCases(t *testing.T) {
 	t.Run("get non-existent team", func(t *testing.T) {
-		db := setupE2EDB(t)
-		router := setupE2ERouter(db)
+		db := teamSetupE2EDB(t)
+		router := teamSetupE2ERouter(db)
 
 		w := httptest.NewRecorder()
 		req, _ := http.NewRequest("GET", "/team/get?team_name=nonexistent", nil)
@@ -279,8 +279,8 @@ func TestE2E_ErrorCases(t *testing.T) {
 	})
 
 	t.Run("invalid JSON payload", func(t *testing.T) {
-		db := setupE2EDB(t)
-		router := setupE2ERouter(db)
+		db := teamSetupE2EDB(t)
+		router := teamSetupE2ERouter(db)
 
 		w := httptest.NewRecorder()
 		req, _ := http.NewRequest("POST", "/team/add", bytes.NewBuffer([]byte("{invalid json")))
@@ -291,8 +291,8 @@ func TestE2E_ErrorCases(t *testing.T) {
 	})
 
 	t.Run("empty team name parameter", func(t *testing.T) {
-		db := setupE2EDB(t)
-		router := setupE2ERouter(db)
+		db := teamSetupE2EDB(t)
+		router := teamSetupE2ERouter(db)
 
 		w := httptest.NewRecorder()
 		req, _ := http.NewRequest("GET", "/team/get?team_name=", nil)

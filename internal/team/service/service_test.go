@@ -36,7 +36,11 @@ func (m *mockRepository) GetByName(ctx context.Context, teamName string) (*teamM
 	return args.Get(0).(*teamModel.Team), args.Error(1)
 }
 
-func (m *mockRepository) CreateOrUpdateUser(ctx context.Context, teamName, userID, username string, isActive bool) (*userModel.User, error) {
+func (m *mockRepository) CreateOrUpdateUser(
+	ctx context.Context,
+	teamName, userID, username string,
+	isActive bool,
+) (*userModel.User, error) {
 	args := m.Called(ctx, teamName, userID, username, isActive)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)

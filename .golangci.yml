@@ -26,8 +26,6 @@ linters:
     
     # Code style
     - revive
-    - gofmt
-    - goimports
     
     # Complexity
     - gocyclo

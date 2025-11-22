@@ -10,6 +10,7 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
+	pullrequestRouter "github.com/festy23/avito_internship/internal/pullrequest/router"
 	teamRouter "github.com/festy23/avito_internship/internal/team/router"
 	userRouter "github.com/festy23/avito_internship/internal/user/router"
 )
@@ -44,6 +45,7 @@ func main() {
 
 	teamRouter.RegisterRoutes(r, db)
 	userRouter.RegisterRoutes(r, db)
+	pullrequestRouter.RegisterRoutes(r, db)
 
 	serverPort := getEnv("SERVER_PORT", ":8080")
 	if err := r.Run(serverPort); err != nil {

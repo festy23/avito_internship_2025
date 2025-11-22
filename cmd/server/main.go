@@ -24,7 +24,7 @@ func getEnv(key, defaultValue string) string {
 func main() {
 	// Build DSN from environment variables
 	host := getEnv("DB_HOST", "localhost")
-	user := getEnv("DB_USER", "postgres")
+	dbUser := getEnv("DB_USER", "postgres")
 	password := getEnv("DB_PASSWORD", "postgres")
 	dbname := getEnv("DB_NAME", "avito_internship")
 	port := getEnv("DB_PORT", "5432")
@@ -32,7 +32,7 @@ func main() {
 	timezone := getEnv("DB_TIMEZONE", "UTC")
 
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=%s",
-		host, user, password, dbname, port, sslmode, timezone)
+		host, dbUser, password, dbname, port, sslmode, timezone)
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {

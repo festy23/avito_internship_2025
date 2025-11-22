@@ -74,9 +74,10 @@ func TestIntegration_SetIsActive(t *testing.T) {
 	db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
 		"u1", "Alice", "team1", true)
 
+	isActive := false
 	reqBody := model.SetIsActiveRequest{
 		UserID:   "u1",
-		IsActive: false,
+		IsActive: &isActive,
 	}
 	jsonBody, _ := json.Marshal(reqBody)
 

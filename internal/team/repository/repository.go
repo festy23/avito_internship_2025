@@ -103,20 +103,47 @@ func (r *repository) GetByName(ctx context.Context, teamName string) (*teamModel
 
 // CreateOrUpdateUser creates or updates a user in the team.
 func (r *repository) CreateOrUpdateUser(ctx context.Context, teamName, userID, username string, isActive bool) (*userModel.User, error) {
+	now := time.Now()
 	user := &userModel.User{
-		UserID:   userID,
-		Username: username,
-		TeamName: teamName,
-		IsActive: isActive,
+		UserID:    userID,
+		Username:  username,
+		TeamName:  teamName,
+		IsActive:  isActive,
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
 
-	// Use UPSERT: INSERT ... ON CONFLICT ... DO UPDATE
-	// For GORM, we use Save which performs UPSERT for records with primary key
-	err := r.db.WithContext(ctx).
-		Save(user).Error
+	// Try to update first
+	result := r.db.WithContext(ctx).
+		Model(&userModel.User{}).
+		Where("user_id = ?", userID).
+		Updates(map[string]interface{}{
+			"username":   username,
+			"team_name":  teamName,
+			"is_active":  isActive,
+			"updated_at": now,
+		})
 
-	if err != nil {
-		return nil, err
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	// If no rows were affected, insert new user
+	if result.RowsAffected == 0 {
+		// Use Exec with raw SQL to ensure exact values are inserted
+		err := r.db.WithContext(ctx).Exec(
+			"INSERT INTO users (user_id, username, team_name, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+			userID, username, teamName, isActive, now, now,
+		).Error
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// Fetch updated user
+		err := r.db.WithContext(ctx).Where("user_id = ?", userID).First(user).Error
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return user, nil

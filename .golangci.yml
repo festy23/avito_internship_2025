@@ -72,6 +72,8 @@ linters:
       exclude:
         - "^TODO:"
         - "^FIXME:"
+        - "^@"
+        - "^// @"
     
     staticcheck:
       checks:

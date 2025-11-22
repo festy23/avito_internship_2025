@@ -1,4 +1,7 @@
-package user
+//go:build e2e
+// +build e2e
+
+package e2e
 
 import (
 	"bytes"
@@ -14,6 +17,7 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
+	"github.com/festy23/avito_internship/internal/user"
 	"github.com/festy23/avito_internship/internal/user/model"
 )
 
@@ -30,7 +34,7 @@ func (testUser) TableName() string {
 	return "users"
 }
 
-func setupIntegrationDB(t *testing.T) *gorm.DB {
+func setupE2EDB(t *testing.T) *gorm.DB {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
 
@@ -59,16 +63,14 @@ func setupIntegrationDB(t *testing.T) *gorm.DB {
 	err = db.AutoMigrate(&Team{}, &testUser{}, &PullRequest{}, &PullRequestReviewer{})
 	require.NoError(t, err)
 
-	db.Exec("ALTER TABLE test_users RENAME TO users")
-
 	return db
 }
 
-func TestIntegration_SetIsActive(t *testing.T) {
-	db := setupIntegrationDB(t)
+func TestE2E_SetUserActive(t *testing.T) {
+	db := setupE2EDB(t)
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	RegisterRoutes(router, db)
+	user.RegisterRoutes(router, db)
 
 	db.Exec("INSERT INTO teams (team_name) VALUES (?)", "team1")
 	db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
@@ -94,11 +96,41 @@ func TestIntegration_SetIsActive(t *testing.T) {
 	assert.False(t, resp.User.IsActive)
 }
 
-func TestIntegration_GetReview(t *testing.T) {
-	db := setupIntegrationDB(t)
+func TestE2E_SetUserInactive(t *testing.T) {
+	db := setupE2EDB(t)
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	RegisterRoutes(router, db)
+	user.RegisterRoutes(router, db)
+
+	db.Exec("INSERT INTO teams (team_name) VALUES (?)", "team1")
+	db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+		"u1", "Alice", "team1", false)
+
+	reqBody := model.SetIsActiveRequest{
+		UserID:   "u1",
+		IsActive: true,
+	}
+	jsonBody, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest(http.MethodPost, "/users/setIsActive", bytes.NewBuffer(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var resp model.SetIsActiveResponse
+	err := json.Unmarshal(w.Body.Bytes(), &resp)
+	require.NoError(t, err)
+	assert.Equal(t, "u1", resp.User.UserID)
+	assert.True(t, resp.User.IsActive)
+}
+
+func TestE2E_GetReviewWithPRs(t *testing.T) {
+	db := setupE2EDB(t)
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	user.RegisterRoutes(router, db)
 
 	db.Exec("INSERT INTO teams (team_name) VALUES (?)", "team1")
 	db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
@@ -107,7 +139,10 @@ func TestIntegration_GetReview(t *testing.T) {
 		"u2", "Bob", "team1", true)
 	db.Exec("INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
 		"pr-1", "PR 1", "u2", "OPEN")
+	db.Exec("INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
+		"pr-2", "PR 2", "u2", "MERGED")
 	db.Exec("INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)", "pr-1", "u1")
+	db.Exec("INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)", "pr-2", "u1")
 
 	req := httptest.NewRequest(http.MethodGet, "/users/getReview?user_id=u1", nil)
 	w := httptest.NewRecorder()
@@ -119,6 +154,51 @@ func TestIntegration_GetReview(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &resp)
 	require.NoError(t, err)
 	assert.Equal(t, "u1", resp.UserID)
-	require.Len(t, resp.PullRequests, 1)
+	require.Len(t, resp.PullRequests, 2)
 	assert.Equal(t, "pr-1", resp.PullRequests[0].PullRequestID)
+	assert.Equal(t, "OPEN", resp.PullRequests[0].Status)
+	assert.Equal(t, "pr-2", resp.PullRequests[1].PullRequestID)
+	assert.Equal(t, "MERGED", resp.PullRequests[1].Status)
+}
+
+func TestE2E_GetReviewWithoutPRs(t *testing.T) {
+	db := setupE2EDB(t)
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	user.RegisterRoutes(router, db)
+
+	db.Exec("INSERT INTO teams (team_name) VALUES (?)", "team1")
+	db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+		"u1", "Alice", "team1", true)
+
+	req := httptest.NewRequest(http.MethodGet, "/users/getReview?user_id=u1", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var resp model.GetReviewResponse
+	err := json.Unmarshal(w.Body.Bytes(), &resp)
+	require.NoError(t, err)
+	assert.Equal(t, "u1", resp.UserID)
+	assert.Empty(t, resp.PullRequests)
+}
+
+func TestE2E_GetReviewUserNotFound(t *testing.T) {
+	db := setupE2EDB(t)
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	user.RegisterRoutes(router, db)
+
+	req := httptest.NewRequest(http.MethodGet, "/users/getReview?user_id=nonexistent", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var resp model.GetReviewResponse
+	err := json.Unmarshal(w.Body.Bytes(), &resp)
+	require.NoError(t, err)
+	assert.Equal(t, "nonexistent", resp.UserID)
+	assert.Empty(t, resp.PullRequests)
 }

@@ -74,6 +74,7 @@ linters:
       exclude:
         - "^TODO:"
         - "^FIXME:"
+        - "^@"
     
     staticcheck:
       checks:
@@ -89,4 +90,3 @@ linters:
           - funlen
           - gosec
           - noctx
-

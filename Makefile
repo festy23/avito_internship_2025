@@ -1,4 +1,4 @@
-.PHONY: lint lint-fix test
+.PHONY: lint lint-fix test test-coverage test-verbose test-e2e
 
 # Run linter
 lint:

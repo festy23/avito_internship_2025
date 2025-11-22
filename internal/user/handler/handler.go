@@ -51,6 +51,7 @@ func (h *Handler) SetIsActive(c *gin.Context) {
 }
 
 // GetReview handles GET /users/getReview request.
+// Returns 200 with empty list for nonexistent users rather than 404.
 // @Summary Get PRs assigned to user
 // @Tags Users
 // @Produce json
@@ -67,10 +68,6 @@ func (h *Handler) GetReview(c *gin.Context) {
 
 	resp, err := h.service.GetReview(c.Request.Context(), userID)
 	if err != nil {
-		if errors.Is(err, model.ErrUserNotFound) {
-			notFoundResponse(c, "user not found")
-			return
-		}
 		errorResponse(c, "INTERNAL_ERROR", "internal server error", http.StatusInternalServerError)
 		return
 	}

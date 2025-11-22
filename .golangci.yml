@@ -87,4 +87,7 @@ linters:
           - funlen
           - gosec
           - noctx
+      - path: handler\.go
+        linters:
+          - godot
 

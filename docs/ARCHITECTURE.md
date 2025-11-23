@@ -101,8 +101,7 @@ HTTP слой, обработка запросов и ответов. Испол
 
 ## Структура проекта
 
-```
-
+```txt
 internal/
   team/
     handler.go      # HTTP handlers

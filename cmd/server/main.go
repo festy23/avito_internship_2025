@@ -28,7 +28,12 @@ func main() {
 	if err != nil {
 		panic(fmt.Sprintf("failed to initialize logger: %v", err))
 	}
-	defer log.Sync()
+	defer func() {
+		if err := log.Sync(); err != nil {
+			// Ignore sync errors on shutdown
+			_ = err
+		}
+	}()
 
 	// Build DSN from environment variables
 	host := getEnv("DB_HOST", "localhost")

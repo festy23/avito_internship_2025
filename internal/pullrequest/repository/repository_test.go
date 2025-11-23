@@ -297,7 +297,7 @@ func TestRepository_AssignReviewer(t *testing.T) {
 		err := repo.AssignReviewer(ctx, "pr-1", "u4")
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "maximum 2 reviewers")
+		assert.ErrorIs(t, err, pullrequestModel.ErrMaxReviewersExceeded)
 	})
 
 	t.Run("duplicate reviewer", func(t *testing.T) {

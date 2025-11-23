@@ -208,8 +208,12 @@ func TestService_CreatePullRequest(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, resp.AssignedReviewers)
 	})
+}
 
-	t.Run("duplicate pull request", func(t *testing.T) {
+func TestService_MergePullRequest(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("merge pull request succeeds", func(t *testing.T) {
 		db := setupTestDB(t)
 		repo := repository.New(db)
 		svc := New(repo, db)
@@ -235,8 +239,12 @@ func TestService_CreatePullRequest(t *testing.T) {
 		assert.Equal(t, "MERGED", resp.Status)
 		assert.NotEmpty(t, resp.MergedAt)
 	})
+}
 
-	t.Run("idempotent merge", func(t *testing.T) {
+func TestService_ReassignReviewer(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("reassign reviewer idempotent", func(t *testing.T) {
 		db := setupTestDB(t)
 		repo := repository.New(db)
 		svc := New(repo, db)
@@ -274,7 +282,7 @@ func TestService_CreatePullRequest(t *testing.T) {
 		assert.NotContains(t, resp.PR.AssignedReviewers, "u2")
 	})
 
-	t.Run("pull request merged", func(t *testing.T) {
+	t.Run("reassign reviewer no candidates (merged)", func(t *testing.T) {
 		db := setupTestDB(t)
 		repo := repository.New(db)
 		svc := New(repo, db)

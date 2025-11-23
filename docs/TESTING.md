@@ -10,7 +10,7 @@
 
 **Расположение**: `internal/*/handler/handler_test.go`, `internal/*/service/service_test.go`, `internal/*/repository/repository_test.go`, `internal/*/model/*_test.go`
 
-**Технологии**: 
+**Технологии**:
 
 - `testify/mock` для моков зависимостей
 - SQLite in-memory для repository тестов
@@ -26,6 +26,7 @@
 - **Model**: JSON сериализация, валидация, GORM интеграция, доменные ошибки
 
 **Запуск**:
+
 ```bash
 go test ./internal/... -v
 ```
@@ -39,6 +40,7 @@ go test ./internal/... -v
 **Build tag**: `integration`
 
 **Технологии**:
+
 - SQLite in-memory
 - `httptest.ResponseRecorder`
 - Полный HTTP стек
@@ -46,18 +48,21 @@ go test ./internal/... -v
 **Цель**: Быстрые тесты бизнес-логики и API контрактов без внешних зависимостей.
 
 **Характеристики**:
+
 - Быстрое выполнение (секунды)
 - Не требуют Docker
 - Используют AutoMigrate вместо реальных миграций
 - Подходят для CI/CD
 
 **Что проверяют**:
+
 - Полный жизненный цикл PR (создание, автоназначение ревьюеров, мерж, переприсвоение)
 - Управление командами (создание, получение, множественные команды)
 - Управление пользователями (активность, получение списка PR для ревьюера)
 - Обработка ошибок и граничные случаи
 
 **Запуск**:
+
 ```bash
 make test-integration
 # или
@@ -73,6 +78,7 @@ go test -tags=integration ./tests/integration/... -v
 **Build tag**: `e2e`
 
 **Технологии**:
+
 - `testcontainers-go` для Docker контейнеров
 - PostgreSQL 12 (реальная БД)
 - Реальный HTTP сервер
@@ -157,7 +163,7 @@ make test
 go test ./...
 ```
 
-### Integration тесты
+## Integration tests
 
 ```bash
 make test-integration

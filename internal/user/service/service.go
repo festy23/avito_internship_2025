@@ -156,6 +156,12 @@ func (s *service) BulkDeactivateTeamMembers(
 		txUserRepo := repository.New(tx, s.logger)
 		txPRRepo := pullrequestRepo.New(tx, s.logger)
 
+		// Get active team members BEFORE deactivating (to get candidates before they're deactivated)
+		activeCandidates, candidatesErr := txPRRepo.GetActiveTeamMembers(ctx, req.TeamName, "")
+		if candidatesErr != nil {
+			return candidatesErr
+		}
+
 		// Bulk deactivate (this also returns deactivated user IDs)
 		deactivatedUserIDs, deactivateErr := txUserRepo.BulkDeactivateTeamMembers(ctx, req.TeamName)
 		if deactivateErr != nil {
@@ -188,12 +194,6 @@ func (s *service) BulkDeactivateTeamMembers(
 				ReassignedPRCount: 0,
 			}
 			return nil
-		}
-
-		// Get active team members once (for all PRs)
-		activeCandidates, candidatesErr := txPRRepo.GetActiveTeamMembers(ctx, req.TeamName, "")
-		if candidatesErr != nil {
-			return candidatesErr
 		}
 
 		// Reassign reviewers for each PR

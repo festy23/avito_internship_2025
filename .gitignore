@@ -26,6 +26,7 @@ bin/
 dist/
 build/
 server
+server.out
 
 # IDE and editor files
 .idea/
@@ -67,5 +68,8 @@ tmp/
 # Local configuration
 config.local.yml
 config.local.yaml
+
+# Postman test run artifacts
+postman/*.postman_test_run.json
 
 server

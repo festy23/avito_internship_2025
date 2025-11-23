@@ -34,12 +34,17 @@ func LoadServerConfigFromEnv() ServerConfig {
 
 // GetAddress returns the full server address (host:port).
 func (c ServerConfig) GetAddress() string {
-	if c.Host == "" {
-		return c.Port
+	// Remove leading colon from port if present, as net.JoinHostPort handles it
+	port := strings.TrimPrefix(c.Port, ":")
+
+	// Handle empty port case - return empty string
+	if port == "" {
+		return ""
 	}
 
-	// Remove leading colon from port if present, as net.JoinHostPort adds it
-	port := strings.TrimPrefix(c.Port, ":")
+	// Always use net.JoinHostPort to normalize the address
+	// For empty host, net.JoinHostPort will return ":port" which works for Listen
+	// Both "8080" and ":8080" work for Listen calls when host is empty
 	return net.JoinHostPort(c.Host, port)
 }
 

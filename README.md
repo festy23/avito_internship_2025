@@ -2,6 +2,10 @@
 
 Сервис для автоматического назначения ревьюеров на Pull Request'ы из команды автора.
 
+## Автор
+
+Проект выполнил **Коновалов Иван**.
+
 ## Описание
 
 Сервис предоставляет HTTP API для управления командами, пользователями и автоматического назначения ревьюеров на Pull Request'ы. При создании PR автоматически назначаются до двух активных ревьюеров из команды автора.
@@ -24,7 +28,7 @@ docker-compose up
 
 ### Локальная разработка
 
-1. Убедитесь, что установлены Go 1.22+ и PostgreSQL 12+
+1. Убедитесь, что установлены Go 1.25.4+ и PostgreSQL 12+
 
 2. Установите зависимости:
 
@@ -416,14 +420,56 @@ make ci
 - Integration тесты
 - Unit тесты
 
+### Локальное тестирование CI/CD
+
+Для быстрой локальной проверки используйте команды `ci-local*` (запускают команды напрямую без Docker):
+
+```bash
+# Запуск всех CI checks
+make ci-local
+
+# Запуск отдельных checks
+make ci-local-lint    # Только lint
+make ci-local-test    # Только unit и integration тесты
+make ci-local-e2e     # Только E2E тесты
+```
+
+### Локальное тестирование GitHub Actions
+
+Для локального тестирования GitHub Actions workflows используется инструмент [act](https://github.com/nektos/act).
+
+**Требования:**
+
+- Docker должен быть установлен и запущен
+- `act` установлен (через `brew install act` на macOS)
+
+**Использование:**
+
+```bash
+# Просмотр доступных jobs
+make ci-act-list
+
+# Запуск всех CI jobs через act
+make ci-act
+
+# Запуск отдельных jobs через act
+make ci-act-lint    # Только lint через act
+make ci-act-test    # Только unit и integration тесты через act
+make ci-act-e2e     # Только E2E тесты через act
+```
+
+Подробнее см. [docs/CI_LOCAL_TESTING.md](docs/CI_LOCAL_TESTING.md).
+
 ### GitHub Actions
 
 Workflow файл: `.github/workflows/ci.yml`
 
 Проверки:
 
-- **Lint** - проверка кода линтером
-- **Test** - запуск unit и integration тестов, генерация coverage report
+- **Lint** - проверка кода линтером (всегда)
+- **Test** - запуск unit тестов, генерация coverage report (всегда)
+- **Integration Tests** - запуск integration тестов (только на `dev` и `main`)
+- **E2E Tests** - запуск E2E тестов (только на `main`)
 
 Статус проверок отображается в GitHub при создании Pull Request.
 
@@ -443,7 +489,7 @@ Workflow файл: `.github/workflows/ci.yml`
 
 ## Требования
 
-- Go 1.22+
+- Go 1.25.4+
 - PostgreSQL 12+
 - Docker и Docker Compose (для запуска через docker-compose)
 
@@ -455,6 +501,7 @@ Workflow файл: `.github/workflows/ci.yml`
 - [Тестирование](docs/TESTING.md)
 - [Нагрузочное тестирование](docs/LOAD_TESTING.md)
 - [Линтер](docs/LINTER.md)
+- [Локальное тестирование CI](docs/CI_LOCAL_TESTING.md)
 - [OpenAPI спецификация](api/openapi.yml)
 
 ### Примечание об OpenAPI спецификации
@@ -462,6 +509,14 @@ Workflow файл: `.github/workflows/ci.yml`
 В файле `api/openapi.yml` обнаружена опечатка в примере для эндпоинта `/pullRequest/reassign` (строка 347): в примере используется `old_reviewer_id`, тогда как в схеме запроса (строка 344) корректно указано `old_user_id`.
 
 **Важно:** Согласно техническому заданию, файл `openapi.yml` изменять нельзя, поэтому опечатка сохранена в спецификации. Реализация сервиса использует корректное поле `old_user_id`, что соответствует схеме запроса.
+
+## AI Инструменты разработки
+
+При разработке проекта использовались следующие AI-инструменты:
+
+- **Perplexity** - для исследования технологий, архитектурных решений и best practices
+- **Cursor** - для разработки и написания кода + документации
+- **CodeRabbit** - для ревью Pull Request'ов
 
 ## Лицензия
 

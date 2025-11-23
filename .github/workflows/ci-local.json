@@ -1,0 +1,8 @@
+{
+  "ref": "refs/heads/main",
+  "event_name": "push",
+  "repository": {
+    "name": "avito_internship"
+  }
+}
+

@@ -63,6 +63,11 @@ func (s *service) GetPullRequestStatistics(ctx context.Context) (*model.PullRequ
 		return nil, err
 	}
 
+	// Handle nil stats case (repository returns nil, nil)
+	if stats == nil {
+		stats = &model.PullRequestStatistics{}
+	}
+
 	s.logger.Infow("GetPullRequestStatistics completed", "total_prs", stats.TotalPRs)
 	return &model.PullRequestStatisticsResponse{
 		Statistics: *stats,

@@ -156,6 +156,12 @@ func (s *service) BulkDeactivateTeamMembers(
 		txUserRepo := repository.New(tx, s.logger)
 		txPRRepo := pullrequestRepo.New(tx, s.logger)
 
+		// Get active team members BEFORE deactivating (to get candidates before they're deactivated)
+		activeCandidates, candidatesErr := txPRRepo.GetActiveTeamMembers(ctx, req.TeamName, "")
+		if candidatesErr != nil {
+			return candidatesErr
+		}
+
 		// Bulk deactivate (this also returns deactivated user IDs)
 		deactivatedUserIDs, deactivateErr := txUserRepo.BulkDeactivateTeamMembers(ctx, req.TeamName)
 		if deactivateErr != nil {
@@ -188,12 +194,6 @@ func (s *service) BulkDeactivateTeamMembers(
 				ReassignedPRCount: 0,
 			}
 			return nil
-		}
-
-		// Get active team members once (for all PRs)
-		activeCandidates, candidatesErr := txPRRepo.GetActiveTeamMembers(ctx, req.TeamName, "")
-		if candidatesErr != nil {
-			return candidatesErr
 		}
 
 		// Reassign reviewers for each PR
@@ -273,7 +273,7 @@ func (s *service) reassignDeactivatedReviewersOptimized(
 		return nil // No deactivated reviewers in this PR
 	}
 
-	// Filter candidates: exclude author and already assigned reviewers
+	// Filter candidates: exclude author, already assigned reviewers, and deactivated users
 	reviewerSet := make(map[string]bool, len(reviewers))
 	for _, reviewerID := range reviewers {
 		reviewerSet[reviewerID] = true
@@ -281,12 +281,19 @@ func (s *service) reassignDeactivatedReviewersOptimized(
 
 	filteredCandidates := make([]userModel.User, 0, len(activeCandidates))
 	for _, candidate := range activeCandidates {
+		// Skip author
 		if candidate.UserID == authorID {
 			continue
 		}
-		if !reviewerSet[candidate.UserID] {
-			filteredCandidates = append(filteredCandidates, candidate)
+		// Skip already assigned reviewers
+		if reviewerSet[candidate.UserID] {
+			continue
 		}
+		// Skip deactivated users (they were in activeCandidates before deactivation)
+		if deactivatedSet[candidate.UserID] {
+			continue
+		}
+		filteredCandidates = append(filteredCandidates, candidate)
 	}
 
 	// Reassign each deactivated reviewer

@@ -3,13 +3,13 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
+	"github.com/festy23/avito_internship/pkg/logger"
 	pullrequestRouter "github.com/festy23/avito_internship/internal/pullrequest/router"
 	teamRouter "github.com/festy23/avito_internship/internal/team/router"
 	userRouter "github.com/festy23/avito_internship/internal/user/router"
@@ -24,6 +24,12 @@ func getEnv(key, defaultValue string) string {
 }
 
 func main() {
+	log, err := logger.New()
+	if err != nil {
+		panic(fmt.Sprintf("failed to initialize logger: %v", err))
+	}
+	defer log.Sync()
+
 	// Build DSN from environment variables
 	host := getEnv("DB_HOST", "localhost")
 	dbUser := getEnv("DB_USER", "postgres")
@@ -38,17 +44,17 @@ func main() {
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		log.Fatalf("failed to connect to database: %v", err)
+		log.Fatalw("failed to connect to database", "error", err)
 	}
 
 	r := gin.Default()
 
-	teamRouter.RegisterRoutes(r, db)
-	userRouter.RegisterRoutes(r, db)
-	pullrequestRouter.RegisterRoutes(r, db)
+	teamRouter.RegisterRoutes(r, db, log)
+	userRouter.RegisterRoutes(r, db, log)
+	pullrequestRouter.RegisterRoutes(r, db, log)
 
 	serverPort := getEnv("SERVER_PORT", ":8080")
 	if err := r.Run(serverPort); err != nil {
-		log.Fatalf("failed to start server: %v", err)
+		log.Fatalw("failed to start server", "error", err)
 	}
 }

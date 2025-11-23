@@ -28,35 +28,35 @@ services:
         condition: service_healthy
     environment:
       # Server configuration
-      SERVER_HOST: ""
-      SERVER_PORT: ":8080"
-      SERVER_READ_TIMEOUT: "10s"
-      SERVER_WRITE_TIMEOUT: "10s"
-      SERVER_IDLE_TIMEOUT: "120s"
-      GIN_MODE: "release"
+      SERVER_HOST: ${SERVER_HOST:-}
+      SERVER_PORT: ${SERVER_PORT:-:8080}
+      SERVER_READ_TIMEOUT: ${SERVER_READ_TIMEOUT:-10s}
+      SERVER_WRITE_TIMEOUT: ${SERVER_WRITE_TIMEOUT:-10s}
+      SERVER_IDLE_TIMEOUT: ${SERVER_IDLE_TIMEOUT:-120s}
+      GIN_MODE: ${GIN_MODE:-release}
       
       # Database configuration
-      DB_HOST: postgres
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      DB_NAME: avito_internship
-      DB_PORT: "5432"
-      DB_SSLMODE: disable
-      DB_TIMEZONE: UTC
+      DB_HOST: ${DB_HOST:-postgres}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_NAME: ${DB_NAME:-avito_internship}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
+      DB_TIMEZONE: ${DB_TIMEZONE:-UTC}
       
       # Database retry configuration
-      DB_RETRY_MAX_ATTEMPTS: "5"
-      DB_RETRY_INITIAL_DELAY: "1s"
-      DB_RETRY_MAX_DELAY: "30s"
-      DB_RETRY_MULTIPLIER: "2.0"
+      DB_RETRY_MAX_ATTEMPTS: ${DB_RETRY_MAX_ATTEMPTS:-5}
+      DB_RETRY_INITIAL_DELAY: ${DB_RETRY_INITIAL_DELAY:-1s}
+      DB_RETRY_MAX_DELAY: ${DB_RETRY_MAX_DELAY:-30s}
+      DB_RETRY_MULTIPLIER: ${DB_RETRY_MULTIPLIER:-2.0}
       
       # Logger configuration
-      LOG_LEVEL: "info"
-      LOG_FORMAT: "json"
-      LOG_OUTPUT: "stdout"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
+      LOG_OUTPUT: ${LOG_OUTPUT:-stdout}
       
       # Migrations path
-      MIGRATIONS_PATH: "migrations"
+      MIGRATIONS_PATH: ${MIGRATIONS_PATH:-migrations}
     ports:
       - "8080:8080"
     healthcheck:

@@ -197,7 +197,11 @@ func (r *repository) AssignReviewer(ctx context.Context, prID, userID string) er
 		}
 	}
 	if len(reviewers) >= 2 {
-		r.logger.Debugw("AssignReviewer max reviewers exceeded", "pull_request_id", prID, "current_count", len(reviewers))
+		r.logger.Debugw(
+			"AssignReviewer max reviewers exceeded",
+			"pull_request_id", prID,
+			"current_count", len(reviewers),
+		)
 		return pullrequestModel.ErrMaxReviewersExceeded
 	}
 
@@ -241,7 +245,15 @@ func (r *repository) RemoveReviewer(ctx context.Context, prID, userID string) er
 		Delete(&pullrequestModel.PullRequestReviewer{})
 
 	if result.Error != nil {
-		r.logger.Errorw("RemoveReviewer database error", "pull_request_id", prID, "user_id", userID, "error", result.Error)
+		r.logger.Errorw(
+			"RemoveReviewer database error",
+			"pull_request_id",
+			prID,
+			"user_id",
+			userID,
+			"error",
+			result.Error,
+		)
 		return result.Error
 	}
 

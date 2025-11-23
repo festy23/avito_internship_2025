@@ -28,7 +28,7 @@ docker-compose up
 
 ### Локальная разработка
 
-1. Убедитесь, что установлены Go 1.22+ и PostgreSQL 12+
+1. Убедитесь, что установлены Go 1.25.4+ и PostgreSQL 12+
 
 2. Установите зависимости:
 
@@ -489,7 +489,7 @@ Workflow файл: `.github/workflows/ci.yml`
 
 ## Требования
 
-- Go 1.22+
+- Go 1.25.4+
 - PostgreSQL 12+
 - Docker и Docker Compose (для запуска через docker-compose)
 

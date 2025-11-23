@@ -35,6 +35,8 @@ func New(db *gorm.DB, logger *zap.SugaredLogger) Repository {
 
 // GetByID finds user by user_id.
 func (r *repository) GetByID(ctx context.Context, userID string) (*model.User, error) {
+	r.logger.Debugw("GetByID called", "user_id", userID)
+
 	var user model.User
 	err := r.db.WithContext(ctx).
 		Where("user_id = ?", userID).
@@ -42,8 +44,10 @@ func (r *repository) GetByID(ctx context.Context, userID string) (*model.User, e
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			r.logger.Debugw("GetByID user not found", "user_id", userID)
 			return nil, model.ErrUserNotFound
 		}
+		r.logger.Errorw("GetByID database error", "user_id", userID, "error", err)
 		return nil, err
 	}
 
@@ -52,6 +56,8 @@ func (r *repository) GetByID(ctx context.Context, userID string) (*model.User, e
 
 // UpdateIsActive updates user's is_active flag using RETURNING clause for atomicity.
 func (r *repository) UpdateIsActive(ctx context.Context, userID string, isActive bool) (*model.User, error) {
+	r.logger.Infow("UpdateIsActive called", "user_id", userID, "new_state", isActive)
+
 	var user model.User
 	result := r.db.WithContext(ctx).
 		Model(&model.User{}).
@@ -59,10 +65,12 @@ func (r *repository) UpdateIsActive(ctx context.Context, userID string, isActive
 		Update("is_active", isActive)
 
 	if result.Error != nil {
+		r.logger.Errorw("UpdateIsActive database error", "user_id", userID, "error", result.Error)
 		return nil, result.Error
 	}
 
 	if result.RowsAffected == 0 {
+		r.logger.Debugw("UpdateIsActive user not found", "user_id", userID)
 		return nil, model.ErrUserNotFound
 	}
 
@@ -72,14 +80,18 @@ func (r *repository) UpdateIsActive(ctx context.Context, userID string, isActive
 		First(&user).Error
 
 	if err != nil {
+		r.logger.Errorw("UpdateIsActive failed to fetch updated user", "user_id", userID, "error", err)
 		return nil, err
 	}
 
+	r.logger.Infow("UpdateIsActive completed", "user_id", userID, "new_state", isActive)
 	return &user, nil
 }
 
 // GetAssignedPullRequests returns PRs where user is reviewer.
 func (r *repository) GetAssignedPullRequests(ctx context.Context, userID string) ([]model.PullRequestShort, error) {
+	r.logger.Debugw("GetAssignedPullRequests called", "user_id", userID)
+
 	var prs []model.PullRequestShort
 
 	err := r.db.WithContext(ctx).
@@ -91,12 +103,14 @@ func (r *repository) GetAssignedPullRequests(ctx context.Context, userID string)
 		Scan(&prs).Error
 
 	if err != nil {
+		r.logger.Errorw("GetAssignedPullRequests database error", "user_id", userID, "error", err)
 		return nil, err
 	}
 
 	if prs == nil {
-		return []model.PullRequestShort{}, nil
+		prs = []model.PullRequestShort{}
 	}
 
+	r.logger.Debugw("GetAssignedPullRequests completed", "user_id", userID, "pr_count", len(prs))
 	return prs, nil
 }

@@ -44,6 +44,8 @@ func New(db *gorm.DB, logger *zap.SugaredLogger) Repository {
 
 // Create creates a new team.
 func (r *repository) Create(ctx context.Context, teamName string) (*teamModel.Team, error) {
+	r.logger.Infow("Creating team", "team_name", teamName)
+
 	now := time.Now()
 	team := &teamModel.Team{
 		TeamName:  teamName,
@@ -55,11 +57,14 @@ func (r *repository) Create(ctx context.Context, teamName string) (*teamModel.Te
 	if err != nil {
 		// Check for unique constraint violation
 		if errors.Is(err, gorm.ErrDuplicatedKey) || isDuplicateError(err) {
+			r.logger.Debugw("Create team duplicate key", "team_name", teamName)
 			return nil, teamModel.ErrTeamExists
 		}
+		r.logger.Errorw("Failed to create team", "team_name", teamName, "error", err)
 		return nil, err
 	}
 
+	r.logger.Infow("Team created", "team_name", teamName)
 	return team, nil
 }
 
@@ -92,6 +97,8 @@ func findSubstring(s, substr string) bool {
 
 // GetByName finds team by team_name.
 func (r *repository) GetByName(ctx context.Context, teamName string) (*teamModel.Team, error) {
+	r.logger.Debugw("GetByName called", "team_name", teamName)
+
 	var team teamModel.Team
 	err := r.db.WithContext(ctx).
 		Where("team_name = ?", teamName).
@@ -99,8 +106,10 @@ func (r *repository) GetByName(ctx context.Context, teamName string) (*teamModel
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			r.logger.Debugw("GetByName team not found", "team_name", teamName)
 			return nil, teamModel.ErrTeamNotFound
 		}
+		r.logger.Errorw("GetByName database error", "team_name", teamName, "error", err)
 		return nil, err
 	}
 
@@ -114,6 +123,8 @@ func (r *repository) CreateOrUpdateUser(
 	teamName, userID, username string,
 	isActive bool,
 ) (*userModel.User, error) {
+	r.logger.Infow("CreateOrUpdateUser called", "team_name", teamName, "user_id", userID, "is_active", isActive)
+
 	now := time.Now()
 	user := &userModel.User{
 		UserID:    userID,
@@ -138,6 +149,7 @@ func (r *repository) CreateOrUpdateUser(
 		Error
 
 	if err != nil {
+		r.logger.Errorw("CreateOrUpdateUser database error", "team_name", teamName, "user_id", userID, "error", err)
 		return nil, err
 	}
 
@@ -145,9 +157,11 @@ func (r *repository) CreateOrUpdateUser(
 	// Use the same db connection (which may be a transaction) to ensure consistency
 	err = r.db.WithContext(ctx).Where("user_id = ?", userID).First(user).Error
 	if err != nil {
+		r.logger.Errorw("CreateOrUpdateUser failed to fetch user", "user_id", userID, "error", err)
 		return nil, err
 	}
 
+	r.logger.Infow("CreateOrUpdateUser completed", "team_name", teamName, "user_id", userID)
 	return user, nil
 }
 
@@ -156,6 +170,8 @@ func (r *repository) GetTeamMembers(
 	ctx context.Context,
 	teamName string,
 ) ([]teamModel.TeamMember, error) {
+	r.logger.Debugw("GetTeamMembers called", "team_name", teamName)
+
 	var members []teamModel.TeamMember
 
 	err := r.db.WithContext(ctx).
@@ -166,12 +182,14 @@ func (r *repository) GetTeamMembers(
 		Scan(&members).Error
 
 	if err != nil {
+		r.logger.Errorw("GetTeamMembers database error", "team_name", teamName, "error", err)
 		return nil, err
 	}
 
 	if members == nil {
-		return []teamModel.TeamMember{}, nil
+		members = []teamModel.TeamMember{}
 	}
 
+	r.logger.Debugw("GetTeamMembers completed", "team_name", teamName, "member_count", len(members))
 	return members, nil
 }

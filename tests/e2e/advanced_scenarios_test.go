@@ -55,6 +55,7 @@ func (s *AdvancedScenariosTestSuite) TestScenario7_ConcurrentPRCreation() {
 		prID   string
 		status int
 		pr     *pullrequestModel.PullRequestResponse
+		err    error
 	}, numPRs)
 
 	for i := 0; i < numPRs; i++ {
@@ -68,15 +69,17 @@ func (s *AdvancedScenariosTestSuite) TestScenario7_ConcurrentPRCreation() {
 				AuthorID:        fmt.Sprintf("conc%d", index+1),
 			}
 
-			resp, pr := s.createPR(prReq)
+			resp, pr, err := s.createPRNoFail(prReq)
 			results <- struct {
 				prID   string
 				status int
 				pr     *pullrequestModel.PullRequestResponse
+				err    error
 			}{
 				prID:   prReq.PullRequestID,
 				status: resp.StatusCode,
 				pr:     pr,
+				err:    err,
 			}
 		}(i)
 	}
@@ -87,6 +90,7 @@ func (s *AdvancedScenariosTestSuite) TestScenario7_ConcurrentPRCreation() {
 	// Step 3: Verify all PRs were created successfully
 	createdPRs := make(map[string]*pullrequestModel.PullRequestResponse)
 	for result := range results {
+		s.Require().NoError(result.err, "PR %s should be created without error", result.prID)
 		s.Require().Equal(http.StatusCreated, result.status, "PR %s should be created successfully", result.prID)
 		s.Require().NotNil(result.pr, "PR %s should have response", result.prID)
 		createdPRs[result.prID] = result.pr

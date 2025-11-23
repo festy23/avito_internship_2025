@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/client"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go"
@@ -74,23 +75,49 @@ func (s *E2ETestSuite) SetupSuite() {
 	// Note: Do NOT apply migrations here - let the application container do it
 	// This tests the real migration path and ensures migrations work correctly
 
-	// Get mapped port for PostgreSQL container
-	mappedPort, err := pgContainer.MappedPort(s.ctx, "5432")
-	require.NoError(s.T(), err, "failed to get mapped port")
+	// Get PostgreSQL container's internal IP address for inter-container communication
+	// We need the internal IP, not the mapped host/port
+	containerName, err := pgContainer.Name(s.ctx)
+	require.NoError(s.T(), err, "failed to get PostgreSQL container name")
+
+	// Get Docker client to inspect container network settings
+	dockerClient, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	require.NoError(s.T(), err, "failed to create Docker client")
+	defer dockerClient.Close()
+
+	// Inspect container by name to get network settings
+	// Remove leading "/" from container name for Docker API
+	containerNameClean := strings.TrimPrefix(containerName, "/")
+	containerInfo, err := dockerClient.ContainerInspect(s.ctx, containerNameClean)
+	require.NoError(s.T(), err, "failed to inspect PostgreSQL container")
+
+	// Get the first network's IP address (containers are typically on one network)
+	var dbHost string
+	var dbPort = "5432"
+	if len(containerInfo.NetworkSettings.Networks) > 0 {
+		// Get IP address from the first network
+		for _, network := range containerInfo.NetworkSettings.Networks {
+			dbHost = network.IPAddress
+			break
+		}
+	}
+
+	// Fallback to container name if IP not found
+	if dbHost == "" {
+		dbHost = containerNameClean
+	}
 
 	// Start application container
-	// Use host.docker.internal to connect from app container to PostgreSQL container
-	// This works on macOS and Windows Docker Desktop
+	// testcontainers-go should place containers in the same network
+	// Use the hostname/IP from connection string for inter-container communication
+	// Use pre-built image to avoid rebuilding for each test suite
 	appContainer, err := testcontainers.GenericContainer(s.ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
-			FromDockerfile: testcontainers.FromDockerfile{
-				Context:    "../../",
-				Dockerfile: "Dockerfile",
-			},
+			Image:        "avito-internship-e2e:test",
 			ExposedPorts: []string{"8080/tcp"},
 			Env: map[string]string{
-				"DB_HOST":                "host.docker.internal", // Connect via Docker Desktop host (macOS/Windows)
-				"DB_PORT":                mappedPort.Port(),      // Use mapped port from host
+				"DB_HOST":                dbHost, // Use hostname/IP from connection string
+				"DB_PORT":                dbPort, // Use port from connection string
 				"DB_USER":                "testuser",
 				"DB_PASSWORD":            "testpass",
 				"DB_NAME":                "testdb",
@@ -292,6 +319,32 @@ func (s *E2ETestSuite) doRequest(method, path string, body io.Reader) (*http.Res
 	return resp, respBody
 }
 
+// doRequestNoFail performs HTTP request and returns response with error.
+// Safe to use in goroutines as it doesn't call require/assert.
+func (s *E2ETestSuite) doRequestNoFail(method, path string, body io.Reader) (*http.Response, []byte, error) {
+	req, err := http.NewRequest(method, s.baseURL+path, body)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	respBody, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		return resp, nil, err
+	}
+
+	return resp, respBody, nil
+}
+
 // createTeam creates a team via HTTP API
 func (s *E2ETestSuite) createTeam(req *teamModel.AddTeamRequest) (*http.Response, *teamModel.TeamResponse) {
 	bodyBytes, _ := json.Marshal(req)
@@ -403,6 +456,34 @@ func (s *E2ETestSuite) createPR(req *pullrequestModel.CreatePullRequestRequest) 
 	require.NoError(s.T(), err, "failed to unmarshal PR response")
 
 	return resp, &result.PR
+}
+
+// createPRNoFail creates a pull request via HTTP API and returns error.
+// Safe to use in goroutines as it doesn't call require/assert.
+func (s *E2ETestSuite) createPRNoFail(req *pullrequestModel.CreatePullRequestRequest) (*http.Response, *pullrequestModel.PullRequestResponse, error) {
+	bodyBytes, err := json.Marshal(req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	resp, respBody, err := s.doRequestNoFail("POST", "/pullRequest/create", strings.NewReader(string(bodyBytes)))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if resp.StatusCode != http.StatusCreated {
+		return resp, nil, nil
+	}
+
+	var result struct {
+		PR pullrequestModel.PullRequestResponse `json:"pr"`
+	}
+	err = json.Unmarshal(respBody, &result)
+	if err != nil {
+		return resp, nil, err
+	}
+
+	return resp, &result.PR, nil
 }
 
 // mergePR merges a pull request via HTTP API

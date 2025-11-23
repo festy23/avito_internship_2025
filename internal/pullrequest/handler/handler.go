@@ -3,11 +3,11 @@ package handler
 
 import (
 	"errors"
-	"log"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 
 	pullrequestModel "github.com/festy23/avito_internship/internal/pullrequest/model"
 	"github.com/festy23/avito_internship/internal/pullrequest/service"
@@ -16,11 +16,12 @@ import (
 // Handler handles HTTP requests for pullrequest endpoints.
 type Handler struct {
 	service service.Service
+	logger  *zap.SugaredLogger
 }
 
 // New creates a new pullrequest handler instance.
-func New(svc service.Service) *Handler {
-	return &Handler{service: svc}
+func New(svc service.Service, logger *zap.SugaredLogger) *Handler {
+	return &Handler{service: svc, logger: logger}
 }
 
 // CreatePullRequest handles POST /pullRequest/create request.
@@ -62,7 +63,7 @@ func (h *Handler) CreatePullRequest(c *gin.Context) {
 			errorResponse(c, "INVALID_REQUEST", err.Error(), http.StatusBadRequest)
 			return
 		}
-		log.Printf("error creating pull request: %v", err)
+		h.logger.Errorw("error creating pull request", "error", err)
 		errorResponse(c, "INTERNAL_ERROR", "internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -105,7 +106,7 @@ func (h *Handler) MergePullRequest(c *gin.Context) {
 			)
 			return
 		}
-		log.Printf("error merging pull request: %v", err)
+		h.logger.Errorw("error merging pull request", "error", err)
 		errorResponse(c, "INTERNAL_ERROR", "internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -181,6 +182,6 @@ func (h *Handler) handleReassignError(c *gin.Context, err error) {
 		errorResponse(c, "INVALID_REQUEST", err.Error(), http.StatusBadRequest)
 		return
 	}
-	log.Printf("error reassigning reviewer: %v", err)
+	h.logger.Errorw("error reassigning reviewer", "error", err)
 	errorResponse(c, "INTERNAL_ERROR", "internal server error", http.StatusInternalServerError)
 }

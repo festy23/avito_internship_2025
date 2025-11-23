@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
@@ -133,8 +134,8 @@ func TestService_CreatePullRequest(t *testing.T) {
 
 	t.Run("success with 2 reviewers", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := repository.New(db)
-		svc := New(repo, db)
+		repo := repository.New(db, zap.NewNop().Sugar())
+		svc := New(repo, db, zap.NewNop().Sugar())
 
 		// Setup test data
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
@@ -166,8 +167,8 @@ func TestService_CreatePullRequest(t *testing.T) {
 
 	t.Run("success with 1 reviewer", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := repository.New(db)
-		svc := New(repo, db)
+		repo := repository.New(db, zap.NewNop().Sugar())
+		svc := New(repo, db, zap.NewNop().Sugar())
 
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
 		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
@@ -190,8 +191,8 @@ func TestService_CreatePullRequest(t *testing.T) {
 
 	t.Run("success without reviewers", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := repository.New(db)
-		svc := New(repo, db)
+		repo := repository.New(db, zap.NewNop().Sugar())
+		svc := New(repo, db, zap.NewNop().Sugar())
 
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
 		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
@@ -215,8 +216,8 @@ func TestService_MergePullRequest(t *testing.T) {
 
 	t.Run("merge pull request succeeds", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := repository.New(db)
-		svc := New(repo, db)
+		repo := repository.New(db, zap.NewNop().Sugar())
+		svc := New(repo, db, zap.NewNop().Sugar())
 
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
 		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
@@ -246,8 +247,8 @@ func TestService_ReassignReviewer(t *testing.T) {
 
 	t.Run("reassign reviewer idempotent", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := repository.New(db)
-		svc := New(repo, db)
+		repo := repository.New(db, zap.NewNop().Sugar())
+		svc := New(repo, db, zap.NewNop().Sugar())
 
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
 		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
@@ -284,8 +285,8 @@ func TestService_ReassignReviewer(t *testing.T) {
 
 	t.Run("reassign reviewer no candidates (merged)", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := repository.New(db)
-		svc := New(repo, db)
+		repo := repository.New(db, zap.NewNop().Sugar())
+		svc := New(repo, db, zap.NewNop().Sugar())
 
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
 		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
@@ -318,8 +319,8 @@ func TestService_ReassignReviewer(t *testing.T) {
 
 	t.Run("pull request not found", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := repository.New(db)
-		svc := New(repo, db)
+		repo := repository.New(db, zap.NewNop().Sugar())
+		svc := New(repo, db, zap.NewNop().Sugar())
 
 		req := &pullrequestModel.ReassignReviewerRequest{
 			PullRequestID: "nonexistent",
@@ -339,7 +340,7 @@ func TestService_CreatePullRequest_Unit(t *testing.T) {
 
 	t.Run("validation - empty pull_request_id", func(t *testing.T) {
 		mockRepo := new(mockRepository)
-		svc := New(mockRepo, nil) // DB not needed for validation tests
+		svc := New(mockRepo, nil, zap.NewNop().Sugar()) // DB not needed for validation tests
 
 		req := &pullrequestModel.CreatePullRequestRequest{
 			PullRequestID:   "",
@@ -356,7 +357,7 @@ func TestService_CreatePullRequest_Unit(t *testing.T) {
 
 	t.Run("validation - empty pull_request_name", func(t *testing.T) {
 		mockRepo := new(mockRepository)
-		svc := New(mockRepo, nil)
+		svc := New(mockRepo, nil, zap.NewNop().Sugar())
 
 		req := &pullrequestModel.CreatePullRequestRequest{
 			PullRequestID:   "pr-1",
@@ -374,7 +375,7 @@ func TestService_CreatePullRequest_Unit(t *testing.T) {
 
 	t.Run("validation - empty author_id", func(t *testing.T) {
 		mockRepo := new(mockRepository)
-		svc := New(mockRepo, nil)
+		svc := New(mockRepo, nil, zap.NewNop().Sugar())
 
 		req := &pullrequestModel.CreatePullRequestRequest{
 			PullRequestID:   "pr-1",
@@ -391,7 +392,7 @@ func TestService_CreatePullRequest_Unit(t *testing.T) {
 
 	t.Run("validation - pull_request_id too long", func(t *testing.T) {
 		mockRepo := new(mockRepository)
-		svc := New(mockRepo, nil)
+		svc := New(mockRepo, nil, zap.NewNop().Sugar())
 
 		longID := make([]byte, 256)
 		for i := range longID {
@@ -413,7 +414,7 @@ func TestService_CreatePullRequest_Unit(t *testing.T) {
 
 	t.Run("author not found", func(t *testing.T) {
 		mockRepo := new(mockRepository)
-		svc := New(mockRepo, nil)
+		svc := New(mockRepo, nil, zap.NewNop().Sugar())
 
 		req := &pullrequestModel.CreatePullRequestRequest{
 			PullRequestID:   "pr-1",
@@ -436,7 +437,7 @@ func TestService_MergePullRequest_Unit(t *testing.T) {
 
 	t.Run("validation - empty pull_request_id", func(t *testing.T) {
 		mockRepo := new(mockRepository)
-		svc := New(mockRepo, nil)
+		svc := New(mockRepo, nil, zap.NewNop().Sugar())
 
 		req := &pullrequestModel.MergePullRequestRequest{
 			PullRequestID: "",
@@ -451,7 +452,7 @@ func TestService_MergePullRequest_Unit(t *testing.T) {
 
 	t.Run("pull request not found", func(t *testing.T) {
 		mockRepo := new(mockRepository)
-		svc := New(mockRepo, nil)
+		svc := New(mockRepo, nil, zap.NewNop().Sugar())
 
 		req := &pullrequestModel.MergePullRequestRequest{
 			PullRequestID: "nonexistent",
@@ -472,7 +473,7 @@ func TestService_ReassignReviewer_Unit(t *testing.T) {
 
 	t.Run("validation - empty pull_request_id", func(t *testing.T) {
 		mockRepo := new(mockRepository)
-		svc := New(mockRepo, nil)
+		svc := New(mockRepo, nil, zap.NewNop().Sugar())
 
 		req := &pullrequestModel.ReassignReviewerRequest{
 			PullRequestID: "",
@@ -488,7 +489,7 @@ func TestService_ReassignReviewer_Unit(t *testing.T) {
 
 	t.Run("validation - empty old_user_id", func(t *testing.T) {
 		mockRepo := new(mockRepository)
-		svc := New(mockRepo, nil)
+		svc := New(mockRepo, nil, zap.NewNop().Sugar())
 
 		req := &pullrequestModel.ReassignReviewerRequest{
 			PullRequestID: "pr-1",
@@ -505,7 +506,7 @@ func TestService_ReassignReviewer_Unit(t *testing.T) {
 
 	t.Run("validation - old_user_id too long", func(t *testing.T) {
 		mockRepo := new(mockRepository)
-		svc := New(mockRepo, nil)
+		svc := New(mockRepo, nil, zap.NewNop().Sugar())
 
 		longID := make([]byte, 256)
 		for i := range longID {

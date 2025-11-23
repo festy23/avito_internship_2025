@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
@@ -75,7 +76,7 @@ func TestRepository_Create(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := New(db)
+		repo := New(db, zap.NewNop().Sugar())
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
 		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
 			"u1", "Alice", "backend", true)
@@ -98,7 +99,7 @@ func TestRepository_Create(t *testing.T) {
 
 	t.Run("duplicate pull request ID", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := New(db)
+		repo := New(db, zap.NewNop().Sugar())
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
 		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
 			"u1", "Alice", "backend", true)
@@ -118,7 +119,7 @@ func TestRepository_Create(t *testing.T) {
 
 	t.Run("invalid author_id", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := New(db)
+		repo := New(db, zap.NewNop().Sugar())
 
 		// Repository doesn't validate author existence - that's service layer responsibility
 		// In SQLite, foreign key constraints are not enforced by default
@@ -138,7 +139,7 @@ func TestRepository_GetByID(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := New(db)
+		repo := New(db, zap.NewNop().Sugar())
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
 		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
 			"u1", "Alice", "backend", true)
@@ -161,7 +162,7 @@ func TestRepository_GetByID(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := New(db)
+		repo := New(db, zap.NewNop().Sugar())
 
 		pr, err := repo.GetByID(ctx, "nonexistent")
 
@@ -175,7 +176,7 @@ func TestRepository_UpdateStatus(t *testing.T) {
 
 	t.Run("success - merge", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := New(db)
+		repo := New(db, zap.NewNop().Sugar())
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
 		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
 			"u1", "Alice", "backend", true)
@@ -200,7 +201,7 @@ func TestRepository_UpdateStatus(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := New(db)
+		repo := New(db, zap.NewNop().Sugar())
 
 		now := time.Now()
 		err := repo.UpdateStatus(ctx, "nonexistent", "MERGED", &now)
@@ -210,7 +211,7 @@ func TestRepository_UpdateStatus(t *testing.T) {
 
 	t.Run("idempotent merge", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := New(db)
+		repo := New(db, zap.NewNop().Sugar())
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
 		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
 			"u1", "Alice", "backend", true)
@@ -240,7 +241,7 @@ func TestRepository_AssignReviewer(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := New(db)
+		repo := New(db, zap.NewNop().Sugar())
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
 		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
 			"u1", "Alice", "backend", true)
@@ -266,7 +267,7 @@ func TestRepository_AssignReviewer(t *testing.T) {
 
 	t.Run("exceed limit of 2", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := New(db)
+		repo := New(db, zap.NewNop().Sugar())
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
 		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
 			"u1", "Alice", "backend", true)
@@ -302,7 +303,7 @@ func TestRepository_AssignReviewer(t *testing.T) {
 
 	t.Run("duplicate reviewer", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := New(db)
+		repo := New(db, zap.NewNop().Sugar())
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
 		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
 			"u1", "Alice", "backend", true)
@@ -333,7 +334,7 @@ func TestRepository_RemoveReviewer(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := New(db)
+		repo := New(db, zap.NewNop().Sugar())
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
 		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
 			"u1", "Alice", "backend", true)
@@ -365,7 +366,7 @@ func TestRepository_RemoveReviewer(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := New(db)
+		repo := New(db, zap.NewNop().Sugar())
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
 		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
 			"u1", "Alice", "backend", true)
@@ -388,7 +389,7 @@ func TestRepository_GetReviewers(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := New(db)
+		repo := New(db, zap.NewNop().Sugar())
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
 		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
 			"u1", "Alice", "backend", true)
@@ -424,7 +425,7 @@ func TestRepository_GetReviewers(t *testing.T) {
 
 	t.Run("empty list", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := New(db)
+		repo := New(db, zap.NewNop().Sugar())
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
 		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
 			"u1", "Alice", "backend", true)
@@ -448,7 +449,7 @@ func TestRepository_GetActiveTeamMembers(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := New(db)
+		repo := New(db, zap.NewNop().Sugar())
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
 		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
 			"u1", "Alice", "backend", true)
@@ -469,7 +470,7 @@ func TestRepository_GetActiveTeamMembers(t *testing.T) {
 
 	t.Run("exclude user", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := New(db)
+		repo := New(db, zap.NewNop().Sugar())
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
 		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
 			"u1", "Alice", "backend", true)
@@ -485,7 +486,7 @@ func TestRepository_GetActiveTeamMembers(t *testing.T) {
 
 	t.Run("only active members", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := New(db)
+		repo := New(db, zap.NewNop().Sugar())
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
 		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
 			"u1", "Alice", "backend", true)
@@ -505,7 +506,7 @@ func TestRepository_GetUserTeam(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := New(db)
+		repo := New(db, zap.NewNop().Sugar())
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
 		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
 			"u1", "Alice", "backend", true)
@@ -518,7 +519,7 @@ func TestRepository_GetUserTeam(t *testing.T) {
 
 	t.Run("user not found", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := New(db)
+		repo := New(db, zap.NewNop().Sugar())
 
 		teamName, err := repo.GetUserTeam(ctx, "nonexistent")
 

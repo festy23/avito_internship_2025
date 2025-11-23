@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 
 	pullrequestModel "github.com/festy23/avito_internship/internal/pullrequest/model"
 	"github.com/festy23/avito_internship/internal/pullrequest/service"
@@ -64,7 +65,7 @@ func setupRouter() *gin.Engine {
 func TestHandler_CreatePullRequest(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		mockSvc := new(mockService)
-		handler := New(mockSvc)
+		handler := New(mockSvc, zap.NewNop().Sugar())
 		router := setupRouter()
 		router.POST("/pullRequest/create", handler.CreatePullRequest)
 
@@ -100,7 +101,7 @@ func TestHandler_CreatePullRequest(t *testing.T) {
 
 	t.Run("duplicate pull request", func(t *testing.T) {
 		mockSvc := new(mockService)
-		handler := New(mockSvc)
+		handler := New(mockSvc, zap.NewNop().Sugar())
 		router := setupRouter()
 		router.POST("/pullRequest/create", handler.CreatePullRequest)
 
@@ -129,7 +130,7 @@ func TestHandler_CreatePullRequest(t *testing.T) {
 
 	t.Run("author not found", func(t *testing.T) {
 		mockSvc := new(mockService)
-		handler := New(mockSvc)
+		handler := New(mockSvc, zap.NewNop().Sugar())
 		router := setupRouter()
 		router.POST("/pullRequest/create", handler.CreatePullRequest)
 
@@ -158,7 +159,7 @@ func TestHandler_CreatePullRequest(t *testing.T) {
 
 	t.Run("invalid request body", func(t *testing.T) {
 		mockSvc := new(mockService)
-		handler := New(mockSvc)
+		handler := New(mockSvc, zap.NewNop().Sugar())
 		router := setupRouter()
 		router.POST("/pullRequest/create", handler.CreatePullRequest)
 
@@ -179,7 +180,7 @@ func TestHandler_CreatePullRequest(t *testing.T) {
 func TestHandler_MergePullRequest(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		mockSvc := new(mockService)
-		handler := New(mockSvc)
+		handler := New(mockSvc, zap.NewNop().Sugar())
 		router := setupRouter()
 		router.POST("/pullRequest/merge", handler.MergePullRequest)
 
@@ -214,7 +215,7 @@ func TestHandler_MergePullRequest(t *testing.T) {
 
 	t.Run("pull request not found", func(t *testing.T) {
 		mockSvc := new(mockService)
-		handler := New(mockSvc)
+		handler := New(mockSvc, zap.NewNop().Sugar())
 		router := setupRouter()
 		router.POST("/pullRequest/merge", handler.MergePullRequest)
 
@@ -241,7 +242,7 @@ func TestHandler_MergePullRequest(t *testing.T) {
 
 	t.Run("invalid request body", func(t *testing.T) {
 		mockSvc := new(mockService)
-		handler := New(mockSvc)
+		handler := New(mockSvc, zap.NewNop().Sugar())
 		router := setupRouter()
 		router.POST("/pullRequest/merge", handler.MergePullRequest)
 
@@ -262,7 +263,7 @@ func TestHandler_MergePullRequest(t *testing.T) {
 func TestHandler_ReassignReviewer(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		mockSvc := new(mockService)
-		handler := New(mockSvc)
+		handler := New(mockSvc, zap.NewNop().Sugar())
 		router := setupRouter()
 		router.POST("/pullRequest/reassign", handler.ReassignReviewer)
 
@@ -301,7 +302,7 @@ func TestHandler_ReassignReviewer(t *testing.T) {
 
 	t.Run("pull request merged", func(t *testing.T) {
 		mockSvc := new(mockService)
-		handler := New(mockSvc)
+		handler := New(mockSvc, zap.NewNop().Sugar())
 		router := setupRouter()
 		router.POST("/pullRequest/reassign", handler.ReassignReviewer)
 
@@ -329,7 +330,7 @@ func TestHandler_ReassignReviewer(t *testing.T) {
 
 	t.Run("reviewer not assigned", func(t *testing.T) {
 		mockSvc := new(mockService)
-		handler := New(mockSvc)
+		handler := New(mockSvc, zap.NewNop().Sugar())
 		router := setupRouter()
 		router.POST("/pullRequest/reassign", handler.ReassignReviewer)
 
@@ -357,7 +358,7 @@ func TestHandler_ReassignReviewer(t *testing.T) {
 
 	t.Run("no candidate", func(t *testing.T) {
 		mockSvc := new(mockService)
-		handler := New(mockSvc)
+		handler := New(mockSvc, zap.NewNop().Sugar())
 		router := setupRouter()
 		router.POST("/pullRequest/reassign", handler.ReassignReviewer)
 
@@ -385,7 +386,7 @@ func TestHandler_ReassignReviewer(t *testing.T) {
 
 	t.Run("invalid request body", func(t *testing.T) {
 		mockSvc := new(mockService)
-		handler := New(mockSvc)
+		handler := New(mockSvc, zap.NewNop().Sugar())
 		router := setupRouter()
 		router.POST("/pullRequest/reassign", handler.ReassignReviewer)
 

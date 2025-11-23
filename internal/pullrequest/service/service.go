@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"time"
 
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 
 	pullrequestModel "github.com/festy23/avito_internship/internal/pullrequest/model"
@@ -36,15 +37,17 @@ type Service interface {
 }
 
 type service struct {
-	repo repository.Repository
-	db   *gorm.DB
+	repo   repository.Repository
+	db     *gorm.DB
+	logger *zap.SugaredLogger
 }
 
 // New creates a new pullrequest service instance.
-func New(repo repository.Repository, db *gorm.DB) Service {
+func New(repo repository.Repository, db *gorm.DB, logger *zap.SugaredLogger) Service {
 	return &service{
-		repo: repo,
-		db:   db,
+		repo:   repo,
+		db:     db,
+		logger: logger,
 	}
 }
 
@@ -118,7 +121,7 @@ func (s *service) createPRInTransaction(
 	req *pullrequestModel.CreatePullRequestRequest,
 	selectedReviewers []userModel.User,
 ) (*pullrequestModel.PullRequestResponse, error) {
-	txRepo := repository.New(tx)
+	txRepo := repository.New(tx, s.logger)
 
 	// Check if PR already exists (inside transaction to prevent race condition)
 	existingPR, checkErr := txRepo.GetByID(ctx, req.PullRequestID)
@@ -285,7 +288,7 @@ func (s *service) reassignInTransaction(
 	tx *gorm.DB,
 	req *pullrequestModel.ReassignReviewerRequest,
 ) (*pullrequestModel.ReassignReviewerResponse, error) {
-	txRepo := repository.New(tx)
+	txRepo := repository.New(tx, s.logger)
 
 	// Get PR (inside transaction)
 	pr, txErr := txRepo.GetByID(ctx, req.PullRequestID)

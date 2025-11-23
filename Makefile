@@ -1,27 +1,28 @@
-.PHONY: lint lint-fix test test-coverage test-verbose test-e2e
+.PHONY: lint lint-fix test test-coverage test-verbose test-e2e test-integration test-coverage-show
 
-# Run linter
 lint:
 	golangci-lint run
 
-# Run linter with auto-fix
 lint-fix:
 	golangci-lint run --fix
 
-# Run tests
 test:
 	go test ./...
 
-# Run tests with coverage
 test-coverage:
 	go test -coverprofile=coverage.out ./...
 	go tool cover -html=coverage.out -o coverage.html
 
-# Run tests with verbose output
+test-coverage-show:
+	go test -coverprofile=coverage.out ./...
+	go tool cover -func=coverage.out
+
 test-verbose:
 	go test -v ./...
 
-# Run E2E tests
 test-e2e:
-	go test -tags=e2e ./tests/e2e/... -v
+	go test -tags=e2e ./tests/e2e/... -v -timeout 20m
+
+test-integration:
+	go test -tags=integration ./tests/integration/... -v
 

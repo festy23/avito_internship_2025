@@ -439,6 +439,7 @@ make ci-local-e2e     # Только E2E тесты
 Для локального тестирования GitHub Actions workflows используется инструмент [act](https://github.com/nektos/act).
 
 **Требования:**
+
 - Docker должен быть установлен и запущен
 - `act` установлен (через `brew install act` на macOS)
 
@@ -467,7 +468,7 @@ Workflow файл: `.github/workflows/ci.yml`
 
 - **Lint** - проверка кода линтером
 - **Test** - запуск unit и integration тестов, генерация coverage report
-- **E2E Tests** - запуск E2E тестов (только при push в `main` и `dev`, не на PR)
+- **E2E Tests** - запуск E2E тестов (при push в `main` и `dev`, а также при PR в `dev`)
 
 Статус проверок отображается в GitHub при создании Pull Request.
 

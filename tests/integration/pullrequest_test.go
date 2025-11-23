@@ -1,7 +1,7 @@
-//go:build e2e
-// +build e2e
+//go:build integration
+// +build integration
 
-package e2e
+package integration
 
 import (
 	"bytes"
@@ -26,17 +26,17 @@ import (
 	teamRouter "github.com/festy23/avito_internship/internal/team/router"
 )
 
-type prE2ETestTeam struct {
+type prTestTeam struct {
 	TeamName  string    `gorm:"primaryKey;column:team_name"`
 	CreatedAt time.Time `gorm:"column:created_at"`
 	UpdatedAt time.Time `gorm:"column:updated_at"`
 }
 
-func (prE2ETestTeam) TableName() string {
+func (prTestTeam) TableName() string {
 	return "teams"
 }
 
-type prE2ETestUser struct {
+type prTestUser struct {
 	UserID    string    `gorm:"primaryKey;column:user_id"`
 	Username  string    `gorm:"column:username;not null"`
 	TeamName  string    `gorm:"column:team_name;not null"`
@@ -45,11 +45,11 @@ type prE2ETestUser struct {
 	UpdatedAt time.Time `gorm:"column:updated_at"`
 }
 
-func (prE2ETestUser) TableName() string {
+func (prTestUser) TableName() string {
 	return "users"
 }
 
-type prE2ETestPullRequest struct {
+type prTestPullRequest struct {
 	PullRequestID   string     `gorm:"primaryKey;column:pull_request_id"`
 	PullRequestName string     `gorm:"column:pull_request_name;not null"`
 	AuthorID        string     `gorm:"column:author_id;not null"`
@@ -58,44 +58,40 @@ type prE2ETestPullRequest struct {
 	MergedAt        *time.Time `gorm:"column:merged_at"`
 }
 
-func (prE2ETestPullRequest) TableName() string {
+func (prTestPullRequest) TableName() string {
 	return "pull_requests"
 }
 
-type prE2ETestPullRequestReviewer struct {
+type prTestPullRequestReviewer struct {
 	ID            int64     `gorm:"primaryKey;column:id"`
 	PullRequestID string    `gorm:"column:pull_request_id;not null"`
 	UserID        string    `gorm:"column:user_id;not null"`
 	AssignedAt    time.Time `gorm:"column:assigned_at"`
 }
 
-func (prE2ETestPullRequestReviewer) TableName() string {
+func (prTestPullRequestReviewer) TableName() string {
 	return "pull_request_reviewers"
 }
 
-func prSetupE2EDB(t *testing.T) *gorm.DB {
-	// Use unique in-memory DB for each test to avoid conflicts
-	// Use test name as part of the DB name to ensure uniqueness
+func setupDB(t *testing.T) *gorm.DB {
 	dbName := ":memory:"
-	// Disable GORM logging in tests to reduce noise (expected "record not found" errors)
 	db, err := gorm.Open(sqlite.Open(dbName), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	require.NoError(t, err)
 
-	// Limit connection pool to 1 to ensure in-memory DB works correctly
 	var sqlDB *sql.DB
 	sqlDB, err = db.DB()
 	require.NoError(t, err)
 	sqlDB.SetMaxOpenConns(1)
 
-	err = db.AutoMigrate(&prE2ETestTeam{}, &prE2ETestUser{}, &prE2ETestPullRequest{}, &prE2ETestPullRequestReviewer{})
+	err = db.AutoMigrate(&prTestTeam{}, &prTestUser{}, &prTestPullRequest{}, &prTestPullRequestReviewer{})
 	require.NoError(t, err)
 
 	return db
 }
 
-func prSetupE2ERouter(db *gorm.DB) *gin.Engine {
+func setupRouter(db *gorm.DB) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	teamRouter.RegisterRoutes(r, db, zap.NewNop().Sugar())
@@ -103,10 +99,10 @@ func prSetupE2ERouter(db *gorm.DB) *gin.Engine {
 	return r
 }
 
-func TestE2E_PullRequestLifecycle(t *testing.T) {
+func TestPullRequestLifecycle(t *testing.T) {
 	t.Run("create team then create PR with automatic reviewer assignment", func(t *testing.T) {
-		db := prSetupE2EDB(t)
-		router := prSetupE2ERouter(db)
+		db := setupDB(t)
+		router := setupRouter(db)
 
 		// Step 1: Create team
 		createTeamReq := &teamModel.AddTeamRequest{
@@ -154,8 +150,8 @@ func TestE2E_PullRequestLifecycle(t *testing.T) {
 	})
 
 	t.Run("create PR then merge", func(t *testing.T) {
-		db := prSetupE2EDB(t)
-		router := prSetupE2ERouter(db)
+		db := setupDB(t)
+		router := setupRouter(db)
 
 		// Setup team
 		createTeamReq := &teamModel.AddTeamRequest{
@@ -211,8 +207,8 @@ func TestE2E_PullRequestLifecycle(t *testing.T) {
 	})
 
 	t.Run("create PR then reassign then merge", func(t *testing.T) {
-		db := prSetupE2EDB(t)
-		router := prSetupE2ERouter(db)
+		db := setupDB(t)
+		router := setupRouter(db)
 
 		// Setup team
 		createTeamReq := &teamModel.AddTeamRequest{
@@ -293,8 +289,8 @@ func TestE2E_PullRequestLifecycle(t *testing.T) {
 	})
 
 	t.Run("attempt reassign after merge - error", func(t *testing.T) {
-		db := prSetupE2EDB(t)
-		router := prSetupE2ERouter(db)
+		db := setupDB(t)
+		router := setupRouter(db)
 
 		// Setup team
 		createTeamReq := &teamModel.AddTeamRequest{
@@ -359,8 +355,8 @@ func TestE2E_PullRequestLifecycle(t *testing.T) {
 	})
 
 	t.Run("attempt reassign non-existent reviewer - error", func(t *testing.T) {
-		db := prSetupE2EDB(t)
-		router := prSetupE2ERouter(db)
+		db := setupDB(t)
+		router := setupRouter(db)
 
 		// Setup team
 		createTeamReq := &teamModel.AddTeamRequest{
@@ -413,8 +409,8 @@ func TestE2E_PullRequestLifecycle(t *testing.T) {
 	})
 
 	t.Run("create PR when only author in team - 0 reviewers", func(t *testing.T) {
-		db := prSetupE2EDB(t)
-		router := prSetupE2ERouter(db)
+		db := setupDB(t)
+		router := setupRouter(db)
 
 		// Setup team with only author
 		createTeamReq := &teamModel.AddTeamRequest{
@@ -455,8 +451,8 @@ func TestE2E_PullRequestLifecycle(t *testing.T) {
 	})
 
 	t.Run("create PR when 2 people including author - 1 reviewer", func(t *testing.T) {
-		db := prSetupE2EDB(t)
-		router := prSetupE2ERouter(db)
+		db := setupDB(t)
+		router := setupRouter(db)
 
 		// Setup team with 2 people
 		createTeamReq := &teamModel.AddTeamRequest{
@@ -499,8 +495,8 @@ func TestE2E_PullRequestLifecycle(t *testing.T) {
 	})
 
 	t.Run("reassign when no candidate - error", func(t *testing.T) {
-		db := prSetupE2EDB(t)
-		router := prSetupE2ERouter(db)
+		db := setupDB(t)
+		router := setupRouter(db)
 
 		// Setup team with only 2 people (author + 1 reviewer)
 		createTeamReq := &teamModel.AddTeamRequest{

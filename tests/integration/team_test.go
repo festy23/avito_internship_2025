@@ -1,7 +1,7 @@
-//go:build e2e
-// +build e2e
+//go:build integration
+// +build integration
 
-package e2e
+package integration
 
 import (
 	"bytes"
@@ -46,8 +46,7 @@ func (teamTestUser) TableName() string {
 	return "users"
 }
 
-func teamSetupE2EDB(t *testing.T) *gorm.DB {
-	// Disable GORM logging in tests to reduce noise (expected "record not found" errors)
+func setupTeamDB(t *testing.T) *gorm.DB {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
@@ -75,17 +74,17 @@ func teamSetupE2EDB(t *testing.T) *gorm.DB {
 	return db
 }
 
-func teamSetupE2ERouter(db *gorm.DB) *gin.Engine {
+func setupTeamRouter(db *gorm.DB) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	teamRouter.RegisterRoutes(r, db, zap.NewNop().Sugar())
 	return r
 }
 
-func TestE2E_TeamLifecycle(t *testing.T) {
+func TestTeamLifecycle(t *testing.T) {
 	t.Run("complete team lifecycle", func(t *testing.T) {
-		db := teamSetupE2EDB(t)
-		router := teamSetupE2ERouter(db)
+		db := setupTeamDB(t)
+		router := setupTeamRouter(db)
 
 		// Step 1: Create team
 		createReq := &teamModel.AddTeamRequest{
@@ -141,10 +140,10 @@ func TestE2E_TeamLifecycle(t *testing.T) {
 	})
 }
 
-func TestE2E_MultipleTeams(t *testing.T) {
+func TestMultipleTeams(t *testing.T) {
 	t.Run("create and retrieve multiple teams", func(t *testing.T) {
-		db := teamSetupE2EDB(t)
-		router := teamSetupE2ERouter(db)
+		db := setupTeamDB(t)
+		router := setupTeamRouter(db)
 
 		// Create first team
 		team1Req := &teamModel.AddTeamRequest{
@@ -204,10 +203,10 @@ func TestE2E_MultipleTeams(t *testing.T) {
 	})
 }
 
-func TestE2E_TeamWithSpecialCharacters(t *testing.T) {
+func TestTeamWithSpecialCharacters(t *testing.T) {
 	t.Run("team name with special characters", func(t *testing.T) {
-		db := teamSetupE2EDB(t)
-		router := teamSetupE2ERouter(db)
+		db := setupTeamDB(t)
+		router := setupTeamRouter(db)
 
 		createReq := &teamModel.AddTeamRequest{
 			TeamName: "team-with-dashes_and_underscores.123",
@@ -236,8 +235,8 @@ func TestE2E_TeamWithSpecialCharacters(t *testing.T) {
 	})
 
 	t.Run("user with unicode characters", func(t *testing.T) {
-		db := teamSetupE2EDB(t)
-		router := teamSetupE2ERouter(db)
+		db := setupTeamDB(t)
+		router := setupTeamRouter(db)
 
 		createReq := &teamModel.AddTeamRequest{
 			TeamName: "international",
@@ -268,10 +267,10 @@ func TestE2E_TeamWithSpecialCharacters(t *testing.T) {
 	})
 }
 
-func TestE2E_ErrorCases(t *testing.T) {
+func TestTeamErrorCases(t *testing.T) {
 	t.Run("get non-existent team", func(t *testing.T) {
-		db := teamSetupE2EDB(t)
-		router := teamSetupE2ERouter(db)
+		db := setupTeamDB(t)
+		router := setupTeamRouter(db)
 
 		w := httptest.NewRecorder()
 		req, _ := http.NewRequest("GET", "/team/get?team_name=nonexistent", nil)
@@ -284,8 +283,8 @@ func TestE2E_ErrorCases(t *testing.T) {
 	})
 
 	t.Run("invalid JSON payload", func(t *testing.T) {
-		db := teamSetupE2EDB(t)
-		router := teamSetupE2ERouter(db)
+		db := setupTeamDB(t)
+		router := setupTeamRouter(db)
 
 		w := httptest.NewRecorder()
 		req, _ := http.NewRequest("POST", "/team/add", bytes.NewBuffer([]byte("{invalid json")))
@@ -296,8 +295,8 @@ func TestE2E_ErrorCases(t *testing.T) {
 	})
 
 	t.Run("empty team name parameter", func(t *testing.T) {
-		db := teamSetupE2EDB(t)
-		router := teamSetupE2ERouter(db)
+		db := setupTeamDB(t)
+		router := setupTeamRouter(db)
 
 		w := httptest.NewRecorder()
 		req, _ := http.NewRequest("GET", "/team/get?team_name=", nil)

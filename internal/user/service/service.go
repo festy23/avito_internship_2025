@@ -38,18 +38,13 @@ func (s *service) SetIsActive(ctx context.Context, req *model.SetIsActiveRequest
 		return nil, model.ErrUserNotFound
 	}
 
-	if req.IsActive == nil {
-		s.logger.Debugw("SetIsActive validation failed", "error", "is_active is nil")
-		return nil, model.ErrInvalidIsActive
-	}
-
-	user, err := s.repo.UpdateIsActive(ctx, req.UserID, *req.IsActive)
+	user, err := s.repo.UpdateIsActive(ctx, req.UserID, req.IsActive)
 	if err != nil {
-		s.logger.Errorw("SetIsActive failed", "user_id", req.UserID, "is_active", *req.IsActive, "error", err)
+		s.logger.Errorw("SetIsActive failed", "user_id", req.UserID, "is_active", req.IsActive, "error", err)
 		return nil, err
 	}
 
-	s.logger.Infow("SetIsActive completed", "user_id", req.UserID, "new_state", *req.IsActive)
+	s.logger.Infow("SetIsActive completed", "user_id", req.UserID, "new_state", req.IsActive)
 	return &model.SetIsActiveResponse{User: *user}, nil
 }
 

@@ -1,7 +1,7 @@
-//go:build e2e
-// +build e2e
+//go:build integration
+// +build integration
 
-package e2e
+package integration
 
 import (
 	"bytes"
@@ -36,8 +36,7 @@ func (testUser) TableName() string {
 	return "users"
 }
 
-func setupE2EDB(t *testing.T) *gorm.DB {
-	// Disable GORM logging in tests to reduce noise (expected "record not found" errors)
+func setupUserDB(t *testing.T) *gorm.DB {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
@@ -71,8 +70,8 @@ func setupE2EDB(t *testing.T) *gorm.DB {
 	return db
 }
 
-func TestE2E_SetUserActive(t *testing.T) {
-	db := setupE2EDB(t)
+func TestSetUserActive(t *testing.T) {
+	db := setupUserDB(t)
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	userRouter.RegisterRoutes(router, db, zap.NewNop().Sugar())
@@ -81,10 +80,9 @@ func TestE2E_SetUserActive(t *testing.T) {
 	db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
 		"u1", "Alice", "team1", true)
 
-	isActive := false
 	reqBody := model.SetIsActiveRequest{
 		UserID:   "u1",
-		IsActive: &isActive,
+		IsActive: false,
 	}
 	jsonBody, _ := json.Marshal(reqBody)
 
@@ -102,8 +100,8 @@ func TestE2E_SetUserActive(t *testing.T) {
 	assert.False(t, resp.User.IsActive)
 }
 
-func TestE2E_SetUserInactive(t *testing.T) {
-	db := setupE2EDB(t)
+func TestSetUserInactive(t *testing.T) {
+	db := setupUserDB(t)
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	userRouter.RegisterRoutes(router, db, zap.NewNop().Sugar())
@@ -112,10 +110,9 @@ func TestE2E_SetUserInactive(t *testing.T) {
 	db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
 		"u1", "Alice", "team1", false)
 
-	isActive := true
 	reqBody := model.SetIsActiveRequest{
 		UserID:   "u1",
-		IsActive: &isActive,
+		IsActive: true,
 	}
 	jsonBody, _ := json.Marshal(reqBody)
 
@@ -133,8 +130,8 @@ func TestE2E_SetUserInactive(t *testing.T) {
 	assert.True(t, resp.User.IsActive)
 }
 
-func TestE2E_GetReviewWithPRs(t *testing.T) {
-	db := setupE2EDB(t)
+func TestGetReviewWithPRs(t *testing.T) {
+	db := setupUserDB(t)
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	userRouter.RegisterRoutes(router, db, zap.NewNop().Sugar())
@@ -168,8 +165,8 @@ func TestE2E_GetReviewWithPRs(t *testing.T) {
 	assert.Equal(t, "MERGED", resp.PullRequests[1].Status)
 }
 
-func TestE2E_GetReviewWithoutPRs(t *testing.T) {
-	db := setupE2EDB(t)
+func TestGetReviewWithoutPRs(t *testing.T) {
+	db := setupUserDB(t)
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	userRouter.RegisterRoutes(router, db, zap.NewNop().Sugar())
@@ -191,8 +188,8 @@ func TestE2E_GetReviewWithoutPRs(t *testing.T) {
 	assert.Empty(t, resp.PullRequests)
 }
 
-func TestE2E_GetReviewUserNotFound(t *testing.T) {
-	db := setupE2EDB(t)
+func TestGetReviewUserNotFound(t *testing.T) {
+	db := setupUserDB(t)
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	userRouter.RegisterRoutes(router, db, zap.NewNop().Sugar())

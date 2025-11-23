@@ -684,8 +684,8 @@ func TestService_ReassignReviewer_TransactionErrors(t *testing.T) {
 
 		assert.Nil(t, resp)
 		assert.Error(t, err)
-		// Should return ErrReviewerNotAssigned when user not found
-		assert.ErrorIs(t, err, pullrequestModel.ErrReviewerNotAssigned)
+		// Should return ErrAuthorNotFound when user doesn't exist (404)
+		assert.ErrorIs(t, err, pullrequestModel.ErrAuthorNotFound)
 	})
 
 	t.Run("error when PR is merged", func(t *testing.T) {

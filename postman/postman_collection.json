@@ -254,7 +254,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"team_name\": \"{{team_name}}\",\n    \"members\": []\n}"
+							"raw": "{\n    \"team_name\": \"{{team_name}}\",\n    \"members\": [\n        {\n            \"user_id\": \"u1\",\n            \"username\": \"Alice\",\n            \"is_active\": true\n        }\n    ]\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/team/add",
@@ -559,6 +559,52 @@
 					"response": []
 				},
 				{
+					"name": "Set User Inactive - u3",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"u3 is deactivated\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.user.is_active).to.eql(false);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"user_id\": \"u3\",\n    \"is_active\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users/setIsActive",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"setIsActive"
+							]
+						},
+						"description": "Деактивировать u3 чтобы не было доступных ревьюеров"
+					},
+					"response": []
+				},
+				{
 					"name": "Create PR - No Reviewers Available",
 					"event": [
 						{
@@ -589,7 +635,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"pull_request_id\": \"pr-no-reviewers\",\n    \"pull_request_name\": \"PR without reviewers\",\n    \"author_id\": \"u1\"\n}"
+							"raw": "{\n    \"pull_request_id\": \"pr-no-reviewers-test\",\n    \"pull_request_name\": \"PR without reviewers\",\n    \"author_id\": \"u1\"\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/pullRequest/create",
@@ -696,6 +742,304 @@
 							]
 						},
 						"description": "Проверка обработки несуществующего автора"
+					},
+					"response": []
+				},
+				{
+					"name": "Reactivate User - u2",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"u2 is reactivated\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.user.is_active).to.eql(true);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"user_id\": \"u2\",\n    \"is_active\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users/setIsActive",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"setIsActive"
+							]
+						},
+						"description": "Реактивировать u2 для теста reassign"
+					},
+					"response": []
+				},
+				{
+					"name": "Reassign Reviewer",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has pr and replaced_by\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('pr');",
+									"    pm.expect(jsonData).to.have.property('replaced_by');",
+									"});",
+									"",
+									"pm.test(\"Old reviewer is replaced\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    var oldReviewerId = pm.environment.get('reviewer_user_id');",
+									"    pm.expect(jsonData.pr.assigned_reviewers).to.not.include(oldReviewerId);",
+									"});",
+									"",
+									"pm.test(\"New reviewer is in assigned_reviewers\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.pr.assigned_reviewers).to.include(jsonData.replaced_by);",
+									"});",
+									"",
+									"// Update reviewer_user_id to the new reviewer for subsequent tests",
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set('reviewer_user_id', jsonData.replaced_by);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"pull_request_id\": \"{{pr_id}}\",\n    \"old_user_id\": \"{{reviewer_user_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/pullRequest/reassign",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"pullRequest",
+								"reassign"
+							]
+						},
+						"description": "Переназначить конкретного ревьювера на другого из его команды"
+					},
+					"response": []
+				},
+				{
+					"name": "Reassign Reviewer - Not Assigned",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 409\", function () {",
+									"    pm.response.to.have.status(409);",
+									"});",
+									"",
+									"pm.test(\"Response has error with NOT_ASSIGNED code\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('error');",
+									"    pm.expect(jsonData.error.code).to.eql('NOT_ASSIGNED');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"pull_request_id\": \"{{pr_id}}\",\n    \"old_user_id\": \"u3\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/pullRequest/reassign",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"pullRequest",
+								"reassign"
+							]
+						},
+						"description": "Проверка обработки случая, когда пользователь существует, но не был назначен ревьювером"
+					},
+					"response": []
+				},
+				{
+					"name": "Reassign Reviewer - No Candidate",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 409\", function () {",
+									"    pm.response.to.have.status(409);",
+									"});",
+									"",
+									"pm.test(\"Response has error with NO_CANDIDATE code\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('error');",
+									"    pm.expect(jsonData.error.code).to.eql('NO_CANDIDATE');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"pull_request_id\": \"{{pr_id}}\",\n    \"old_user_id\": \"{{reviewer_user_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/pullRequest/reassign",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"pullRequest",
+								"reassign"
+							]
+						},
+						"description": "Проверка обработки случая, когда нет доступных кандидатов для замены"
+					},
+					"response": []
+				},
+				{
+					"name": "Reassign Reviewer - PR Not Found",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"pm.test(\"Response has error with NOT_FOUND code\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('error');",
+									"    pm.expect(jsonData.error.code).to.eql('NOT_FOUND');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"pull_request_id\": \"nonexistent_pr\",\n    \"old_user_id\": \"u1\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/pullRequest/reassign",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"pullRequest",
+								"reassign"
+							]
+						},
+						"description": "Проверка обработки несуществующего PR"
+					},
+					"response": []
+				},
+				{
+					"name": "Reassign Reviewer - User Not Found",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"pm.test(\"Response has error with NOT_FOUND code\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('error');",
+									"    pm.expect(jsonData.error.code).to.eql('NOT_FOUND');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"pull_request_id\": \"{{pr_id}}\",\n    \"old_user_id\": \"nonexistent_user\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/pullRequest/reassign",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"pullRequest",
+								"reassign"
+							]
+						},
+						"description": "Проверка обработки несуществующего пользователя"
 					},
 					"response": []
 				},
@@ -850,64 +1194,6 @@
 					"response": []
 				},
 				{
-					"name": "Reassign Reviewer",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test(\"Status code is 200\", function () {",
-									"    pm.response.to.have.status(200);",
-									"});",
-									"",
-									"pm.test(\"Response has pr and replaced_by\", function () {",
-									"    var jsonData = pm.response.json();",
-									"    pm.expect(jsonData).to.have.property('pr');",
-									"    pm.expect(jsonData).to.have.property('replaced_by');",
-									"});",
-									"",
-									"pm.test(\"Old reviewer is replaced\", function () {",
-									"    var jsonData = pm.response.json();",
-									"    var oldReviewerId = pm.environment.get('reviewer_user_id');",
-									"    pm.expect(jsonData.pr.assigned_reviewers).to.not.include(oldReviewerId);",
-									"});",
-									"",
-									"pm.test(\"New reviewer is in assigned_reviewers\", function () {",
-									"    var jsonData = pm.response.json();",
-									"    pm.expect(jsonData.pr.assigned_reviewers).to.include(jsonData.replaced_by);",
-									"});"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"pull_request_id\": \"{{pr_id}}\",\n    \"old_user_id\": \"{{reviewer_user_id}}\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/pullRequest/reassign",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"pullRequest",
-								"reassign"
-							]
-						},
-						"description": "Переназначить конкретного ревьювера на другого из его команды"
-					},
-					"response": []
-				},
-				{
 					"name": "Reassign Reviewer - PR Merged",
 					"event": [
 						{
@@ -951,100 +1237,6 @@
 							]
 						},
 						"description": "Проверка невозможности переназначения после MERGED"
-					},
-					"response": []
-				},
-				{
-					"name": "Reassign Reviewer - Not Assigned",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test(\"Status code is 409\", function () {",
-									"    pm.response.to.have.status(409);",
-									"});",
-									"",
-									"pm.test(\"Response has error with NOT_ASSIGNED code\", function () {",
-									"    var jsonData = pm.response.json();",
-									"    pm.expect(jsonData).to.have.property('error');",
-									"    pm.expect(jsonData.error.code).to.eql('NOT_ASSIGNED');",
-									"});"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"pull_request_id\": \"{{pr_id}}\",\n    \"old_user_id\": \"u999\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/pullRequest/reassign",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"pullRequest",
-								"reassign"
-							]
-						},
-						"description": "Проверка обработки случая, когда пользователь не был назначен ревьювером"
-					},
-					"response": []
-				},
-				{
-					"name": "Reassign Reviewer - No Candidate",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test(\"Status code is 409\", function () {",
-									"    pm.response.to.have.status(409);",
-									"});",
-									"",
-									"pm.test(\"Response has error with NO_CANDIDATE code\", function () {",
-									"    var jsonData = pm.response.json();",
-									"    pm.expect(jsonData).to.have.property('error');",
-									"    pm.expect(jsonData.error.code).to.eql('NO_CANDIDATE');",
-									"});"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"pull_request_id\": \"{{pr_id}}\",\n    \"old_user_id\": \"{{reviewer_user_id}}\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/pullRequest/reassign",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"pullRequest",
-								"reassign"
-							]
-						},
-						"description": "Проверка обработки случая, когда нет доступных кандидатов для замены"
 					},
 					"response": []
 				}
@@ -1102,9 +1294,9 @@
 							},
 							"response": []
 						},
-					{
-						"name": "2. Create PR",
-						"event": [
+						{
+							"name": "2. Create PR",
+							"event": [
 								{
 									"listen": "test",
 									"script": {
@@ -1136,14 +1328,14 @@
 									"raw": "{\n    \"pull_request_id\": \"e2e_pr_001\",\n    \"pull_request_name\": \"E2E Test PR\",\n    \"author_id\": \"{{e2e_user1_id}}\"\n}"
 								},
 								"url": {
-								"raw": "{{base_url}}/pullRequest/create",
-								"host": [
-									"{{base_url}}"
-								],
-								"path": [
-									"pullRequest",
-									"create"
-								]
+									"raw": "{{base_url}}/pullRequest/create",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"pullRequest",
+										"create"
+									]
 								}
 							},
 							"response": []
@@ -1191,8 +1383,8 @@
 							"response": []
 						},
 						{
-						"name": "4. Merge PR",
-						"event": [
+							"name": "4. Merge PR",
+							"event": [
 								{
 									"listen": "test",
 									"script": {
@@ -1223,14 +1415,14 @@
 									"raw": "{\n    \"pull_request_id\": \"{{e2e_pr_id}}\"\n}"
 								},
 								"url": {
-								"raw": "{{base_url}}/pullRequest/merge",
-								"host": [
-									"{{base_url}}"
-								],
-								"path": [
-									"pullRequest",
-									"merge"
-								]
+									"raw": "{{base_url}}/pullRequest/merge",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"pullRequest",
+										"merge"
+									]
 								}
 							},
 							"response": []
@@ -1266,16 +1458,16 @@
 								"body": {
 									"mode": "raw",
 									"raw": "{\n    \"pull_request_id\": \"{{e2e_pr_id}}\",\n    \"old_user_id\": \"{{e2e_reviewer_id}}\"\n}"
-							},
-							"url": {
-								"raw": "{{base_url}}/pullRequest/reassign",
-								"host": [
-									"{{base_url}}"
-								],
-								"path": [
-									"pullRequest",
-									"reassign"
-								]
+								},
+								"url": {
+									"raw": "{{base_url}}/pullRequest/reassign",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"pullRequest",
+										"reassign"
+									]
 								}
 							},
 							"response": []
@@ -1295,4 +1487,3 @@
 		}
 	]
 }
-

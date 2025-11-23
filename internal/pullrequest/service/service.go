@@ -301,6 +301,16 @@ func (s *service) reassignInTransaction(
 		return nil, pullrequestModel.ErrPullRequestMerged
 	}
 
+	// Get old reviewer's team first to check if user exists
+	teamName, teamErr := txRepo.GetUserTeam(ctx, req.OldUserID)
+	if teamErr != nil {
+		// If user doesn't exist, return NOT_FOUND error (404)
+		if errors.Is(teamErr, pullrequestModel.ErrAuthorNotFound) {
+			return nil, pullrequestModel.ErrAuthorNotFound // User not found should return 404
+		}
+		return nil, teamErr
+	}
+
 	// Check if old_user_id is assigned as reviewer (inside transaction)
 	reviewers, getErr := txRepo.GetReviewers(ctx, req.PullRequestID)
 	if getErr != nil {
@@ -309,16 +319,6 @@ func (s *service) reassignInTransaction(
 
 	if !isReviewerAssigned(reviewers, req.OldUserID) {
 		return nil, pullrequestModel.ErrReviewerNotAssigned
-	}
-
-	// Get old reviewer's team (after confirming they are assigned)
-	teamName, teamErr := txRepo.GetUserTeam(ctx, req.OldUserID)
-	if teamErr != nil {
-		// If user doesn't exist, return appropriate error
-		if errors.Is(teamErr, pullrequestModel.ErrAuthorNotFound) {
-			return nil, pullrequestModel.ErrReviewerNotAssigned // User not found means they can't be a reviewer
-		}
-		return nil, teamErr
 	}
 
 	// Get active team members excluding old reviewer

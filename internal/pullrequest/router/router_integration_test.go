@@ -401,6 +401,8 @@ func TestIntegration_ReassignReviewer(t *testing.T) {
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
 		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
 			"u1", "Alice", "backend", true)
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u2", "Bob", "backend", true)
 		db.Exec(
 			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
 			"pr-1",
@@ -408,6 +410,7 @@ func TestIntegration_ReassignReviewer(t *testing.T) {
 			"u1",
 			"OPEN",
 		)
+		// Note: u2 exists in team but is not assigned as reviewer to pr-1
 
 		req := &pullrequestModel.ReassignReviewerRequest{
 			PullRequestID: "pr-1",

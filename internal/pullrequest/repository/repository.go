@@ -173,11 +173,11 @@ func (r *repository) AssignReviewer(ctx context.Context, prID, userID string) er
 	// Check for duplicate reviewer
 	for _, reviewerID := range reviewers {
 		if reviewerID == userID {
-			return errors.New("reviewer already assigned to this pull request")
+			return pullrequestModel.ErrReviewerAlreadyAssigned
 		}
 	}
 	if len(reviewers) >= 2 {
-		return errors.New("maximum 2 reviewers allowed per pull request")
+		return pullrequestModel.ErrMaxReviewersExceeded
 	}
 
 	reviewer := &pullrequestModel.PullRequestReviewer{
@@ -190,7 +190,7 @@ func (r *repository) AssignReviewer(ctx context.Context, prID, userID string) er
 	if err != nil {
 		// Check for unique constraint violation (same reviewer already assigned)
 		if errors.Is(err, gorm.ErrDuplicatedKey) || isDuplicateError(err) {
-			return errors.New("reviewer already assigned to this pull request")
+			return pullrequestModel.ErrReviewerAlreadyAssigned
 		}
 		// Check for max reviewers constraint from trigger (atomic protection)
 		if err.Error() != "" && contains(err.Error(), "Maximum 2 reviewers") {

@@ -19,6 +19,8 @@ var (
 	ErrInvalidPullRequestID = errors.New("invalid pull request ID")
 	// ErrMaxReviewersExceeded indicates that the maximum number of reviewers (2) has been exceeded.
 	ErrMaxReviewersExceeded = errors.New("maximum 2 reviewers allowed per pull request")
+	// ErrReviewerAlreadyAssigned indicates that the reviewer is already assigned to this pull request.
+	ErrReviewerAlreadyAssigned = errors.New("reviewer already assigned to this pull request")
 	// ErrAuthorCannotBeReviewer indicates that the author cannot be assigned as a reviewer.
 	ErrAuthorCannotBeReviewer = errors.New("author cannot be assigned as reviewer")
 )

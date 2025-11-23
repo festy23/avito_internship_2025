@@ -466,9 +466,10 @@ Workflow файл: `.github/workflows/ci.yml`
 
 Проверки:
 
-- **Lint** - проверка кода линтером
-- **Test** - запуск unit и integration тестов, генерация coverage report
-- **E2E Tests** - запуск E2E тестов (при push в `main` и `dev`, а также при PR в `dev`)
+- **Lint** - проверка кода линтером (всегда)
+- **Test** - запуск unit тестов, генерация coverage report (всегда)
+- **Integration Tests** - запуск integration тестов (только на `dev` и `main`)
+- **E2E Tests** - запуск E2E тестов (только на `main`)
 
 Статус проверок отображается в GitHub при создании Pull Request.
 

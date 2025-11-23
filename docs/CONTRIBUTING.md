@@ -91,7 +91,7 @@ Pre-commit hooks для проверки формата, форматирова�
 
 Примеры:
 
-- `feat(pullrequest): add automatic picking reviewr`
+- `feat(pullrequest): add automatic picking reviewer`
 - `fix(user): fix validation activity`
 
 #### Описание

@@ -53,10 +53,9 @@ services:
       DB_RETRY_MULTIPLIER: "2.0"
       
       # Logger configuration
-      LOGGER_LEVEL: "info"
-      LOGGER_FORMAT: "json"
-      LOGGER_OUTPUT: "stdout"
-      LOGGER_PRODUCTION: "true"
+      LOG_LEVEL: "info"
+      LOG_FORMAT: "json"
+      LOG_OUTPUT: "stdout"
       
       # Migrations path
       MIGRATIONS_PATH: "migrations"

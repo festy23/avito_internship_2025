@@ -13,6 +13,7 @@
 
 # Output of the go coverage tool
 *.out
+coverage.html
 
 # Dependency directories
 vendor/
@@ -24,6 +25,7 @@ go.work
 bin/
 dist/
 build/
+server
 
 # IDE and editor files
 .idea/

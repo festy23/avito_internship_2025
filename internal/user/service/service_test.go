@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 
 	"github.com/festy23/avito_internship/internal/user/model"
 )
@@ -45,7 +46,7 @@ func TestService_SetIsActive(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		mockRepo := new(mockRepository)
-		svc := New(mockRepo)
+		svc := New(mockRepo, zap.NewNop().Sugar())
 
 		isActive := false
 		req := &model.SetIsActiveRequest{
@@ -73,7 +74,7 @@ func TestService_SetIsActive(t *testing.T) {
 
 	t.Run("user not found", func(t *testing.T) {
 		mockRepo := new(mockRepository)
-		svc := New(mockRepo)
+		svc := New(mockRepo, zap.NewNop().Sugar())
 
 		isActive := false
 		req := &model.SetIsActiveRequest{
@@ -92,7 +93,7 @@ func TestService_SetIsActive(t *testing.T) {
 
 	t.Run("empty user_id", func(t *testing.T) {
 		mockRepo := new(mockRepository)
-		svc := New(mockRepo)
+		svc := New(mockRepo, zap.NewNop().Sugar())
 
 		isActive := false
 		req := &model.SetIsActiveRequest{
@@ -109,7 +110,7 @@ func TestService_SetIsActive(t *testing.T) {
 
 	t.Run("missing is_active", func(t *testing.T) {
 		mockRepo := new(mockRepository)
-		svc := New(mockRepo)
+		svc := New(mockRepo, zap.NewNop().Sugar())
 
 		req := &model.SetIsActiveRequest{
 			UserID:   "u1",
@@ -125,7 +126,7 @@ func TestService_SetIsActive(t *testing.T) {
 
 	t.Run("repository error", func(t *testing.T) {
 		mockRepo := new(mockRepository)
-		svc := New(mockRepo)
+		svc := New(mockRepo, zap.NewNop().Sugar())
 
 		isActive := false
 		req := &model.SetIsActiveRequest{
@@ -149,7 +150,7 @@ func TestService_GetReview(t *testing.T) {
 
 	t.Run("success with PRs", func(t *testing.T) {
 		mockRepo := new(mockRepository)
-		svc := New(mockRepo)
+		svc := New(mockRepo, zap.NewNop().Sugar())
 
 		expectedPRs := []model.PullRequestShort{
 			{
@@ -180,7 +181,7 @@ func TestService_GetReview(t *testing.T) {
 
 	t.Run("success empty list", func(t *testing.T) {
 		mockRepo := new(mockRepository)
-		svc := New(mockRepo)
+		svc := New(mockRepo, zap.NewNop().Sugar())
 
 		mockRepo.On("GetAssignedPullRequests", ctx, "u1").Return([]model.PullRequestShort{}, nil)
 
@@ -194,7 +195,7 @@ func TestService_GetReview(t *testing.T) {
 
 	t.Run("empty user_id", func(t *testing.T) {
 		mockRepo := new(mockRepository)
-		svc := New(mockRepo)
+		svc := New(mockRepo, zap.NewNop().Sugar())
 
 		resp, err := svc.GetReview(ctx, "")
 
@@ -205,7 +206,7 @@ func TestService_GetReview(t *testing.T) {
 
 	t.Run("repository error", func(t *testing.T) {
 		mockRepo := new(mockRepository)
-		svc := New(mockRepo)
+		svc := New(mockRepo, zap.NewNop().Sugar())
 
 		repoErr := errors.New("database error")
 		mockRepo.On("GetAssignedPullRequests", ctx, "u1").Return(nil, repoErr)

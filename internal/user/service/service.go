@@ -4,6 +4,8 @@ package service
 import (
 	"context"
 
+	"go.uber.org/zap"
+
 	"github.com/festy23/avito_internship/internal/user/model"
 	"github.com/festy23/avito_internship/internal/user/repository"
 )
@@ -18,12 +20,13 @@ type Service interface {
 }
 
 type service struct {
-	repo repository.Repository
+	repo   repository.Repository
+	logger *zap.SugaredLogger
 }
 
 // New creates a new user service instance.
-func New(repo repository.Repository) Service {
-	return &service{repo: repo}
+func New(repo repository.Repository, logger *zap.SugaredLogger) Service {
+	return &service{repo: repo, logger: logger}
 }
 
 // SetIsActive updates user activity status.

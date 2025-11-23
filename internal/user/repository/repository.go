@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 
 	"github.com/festy23/avito_internship/internal/user/model"
@@ -23,12 +24,13 @@ type Repository interface {
 }
 
 type repository struct {
-	db *gorm.DB
+	db     *gorm.DB
+	logger *zap.SugaredLogger
 }
 
 // New creates a new user repository instance.
-func New(db *gorm.DB) Repository {
-	return &repository{db: db}
+func New(db *gorm.DB, logger *zap.SugaredLogger) Repository {
+	return &repository{db: db, logger: logger}
 }
 
 // GetByID finds user by user_id.

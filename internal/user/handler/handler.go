@@ -3,10 +3,10 @@ package handler
 
 import (
 	"errors"
-	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 
 	"github.com/festy23/avito_internship/internal/user/model"
 	"github.com/festy23/avito_internship/internal/user/service"
@@ -15,11 +15,12 @@ import (
 // Handler handles HTTP requests for user endpoints.
 type Handler struct {
 	service service.Service
+	logger  *zap.SugaredLogger
 }
 
 // New creates a new user handler instance.
-func New(svc service.Service) *Handler {
-	return &Handler{service: svc}
+func New(svc service.Service, logger *zap.SugaredLogger) *Handler {
+	return &Handler{service: svc, logger: logger}
 }
 
 // SetIsActive handles POST /users/setIsActive request.
@@ -80,7 +81,7 @@ func (h *Handler) GetReview(c *gin.Context) {
 			})
 			return
 		}
-		log.Printf("error getting review for user %s: %v", userID, err)
+		h.logger.Errorw("error getting review for user", "user_id", userID, "error", err)
 		errorResponse(c, "INTERNAL_ERROR", "internal server error", http.StatusInternalServerError)
 		return
 	}

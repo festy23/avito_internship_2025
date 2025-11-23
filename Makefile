@@ -29,6 +29,9 @@ test-e2e: test-e2e-build
 test-integration:
 	go test -tags=integration ./tests/integration/... -v
 
+test-load:
+	go test -tags=load ./tests/load/... -v -timeout 5m
+
 ci: lint test-integration test
 	@echo "All CI checks passed!"
 

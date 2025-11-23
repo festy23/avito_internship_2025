@@ -41,6 +41,22 @@ func (m *mockRepository) GetAssignedPullRequests(ctx context.Context, userID str
 	return args.Get(0).([]model.PullRequestShort), args.Error(1)
 }
 
+func (m *mockRepository) BulkDeactivateTeamMembers(ctx context.Context, teamName string) ([]string, error) {
+	args := m.Called(ctx, teamName)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]string), args.Error(1)
+}
+
+func (m *mockRepository) GetTeamMemberIDs(ctx context.Context, teamName string) ([]string, error) {
+	args := m.Called(ctx, teamName)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]string), args.Error(1)
+}
+
 func TestService_SetIsActive(t *testing.T) {
 	ctx := context.Background()
 

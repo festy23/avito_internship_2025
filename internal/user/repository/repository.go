@@ -21,6 +21,12 @@ type Repository interface {
 
 	// GetAssignedPullRequests returns PRs where user is reviewer.
 	GetAssignedPullRequests(ctx context.Context, userID string) ([]model.PullRequestShort, error)
+
+	// BulkDeactivateTeamMembers deactivates all active members of a team.
+	BulkDeactivateTeamMembers(ctx context.Context, teamName string) ([]string, error)
+
+	// GetTeamMemberIDs returns all user IDs for a team.
+	GetTeamMemberIDs(ctx context.Context, teamName string) ([]string, error)
 }
 
 type repository struct {
@@ -113,4 +119,77 @@ func (r *repository) GetAssignedPullRequests(ctx context.Context, userID string)
 
 	r.logger.Debugw("GetAssignedPullRequests completed", "user_id", userID, "pr_count", len(prs))
 	return prs, nil
+}
+
+// BulkDeactivateTeamMembers deactivates all active members of a team.
+func (r *repository) BulkDeactivateTeamMembers(ctx context.Context, teamName string) ([]string, error) {
+	r.logger.Infow("BulkDeactivateTeamMembers called", "team_name", teamName)
+
+	var deactivatedUserIDs []string
+
+	// Get active team members first
+	var activeUsers []model.User
+	err := r.db.WithContext(ctx).
+		Where("team_name = ? AND is_active = ?", teamName, true).
+		Find(&activeUsers).Error
+
+	if err != nil {
+		r.logger.Errorw("BulkDeactivateTeamMembers failed to get active users", "team_name", teamName, "error", err)
+		return nil, err
+	}
+
+	if len(activeUsers) == 0 {
+		r.logger.Debugw("BulkDeactivateTeamMembers no active users found", "team_name", teamName)
+		return []string{}, nil
+	}
+
+	// Collect user IDs
+	userIDs := make([]string, 0, len(activeUsers))
+	for _, user := range activeUsers {
+		userIDs = append(userIDs, user.UserID)
+	}
+
+	// Bulk update
+	result := r.db.WithContext(ctx).
+		Model(&model.User{}).
+		Where("team_name = ? AND is_active = ?", teamName, true).
+		Update("is_active", false)
+
+	if result.Error != nil {
+		r.logger.Errorw("BulkDeactivateTeamMembers database error", "team_name", teamName, "error", result.Error)
+		return nil, result.Error
+	}
+
+	deactivatedUserIDs = userIDs
+	r.logger.Infow(
+		"BulkDeactivateTeamMembers completed",
+		"team_name",
+		teamName,
+		"deactivated_count",
+		len(deactivatedUserIDs),
+	)
+	return deactivatedUserIDs, nil
+}
+
+// GetTeamMemberIDs returns all user IDs for a team.
+func (r *repository) GetTeamMemberIDs(ctx context.Context, teamName string) ([]string, error) {
+	r.logger.Debugw("GetTeamMemberIDs called", "team_name", teamName)
+
+	var userIDs []string
+	err := r.db.WithContext(ctx).
+		Model(&model.User{}).
+		Where("team_name = ?", teamName).
+		Pluck("user_id", &userIDs).Error
+
+	if err != nil {
+		r.logger.Errorw("GetTeamMemberIDs database error", "team_name", teamName, "error", err)
+		return nil, err
+	}
+
+	if userIDs == nil {
+		userIDs = []string{}
+	}
+
+	r.logger.Debugw("GetTeamMemberIDs completed", "team_name", teamName, "count", len(userIDs))
+	return userIDs, nil
 }

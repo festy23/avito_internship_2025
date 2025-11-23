@@ -165,14 +165,18 @@ func TestNew(t *testing.T) {
 			}
 		}()
 
-		// Clear env vars to use defaults
-		for _, key := range envKeys {
-			os.Unsetenv(key)
-		}
+		// Set invalid host to ensure connection fails
+		os.Setenv("DB_HOST", "nonexistent-host-12345")
+		os.Setenv("DB_USER", "test")
+		os.Setenv("DB_PASSWORD", "test")
+		os.Setenv("DB_NAME", "test_db")
+		os.Setenv("DB_PORT", "5432")
+		os.Setenv("DB_SSLMODE", "disable")
+		os.Setenv("DB_TIMEZONE", "UTC")
 
-		// This will fail to connect (no real PostgreSQL), but we test that New() is called
+		// This will fail to connect (invalid host), but we test that New() is called
 		db, err := New()
-		assert.Error(t, err) // Expected - no PostgreSQL running
+		assert.Error(t, err) // Expected - invalid host
 		assert.Nil(t, db)
 	})
 }

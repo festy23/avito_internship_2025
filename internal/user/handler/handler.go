@@ -6,10 +6,12 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
+	teamModel "github.com/festy23/avito_internship/internal/team/model"
 	"github.com/festy23/avito_internship/internal/user/model"
 	"github.com/festy23/avito_internship/internal/user/service"
 )
@@ -100,6 +102,47 @@ func (h *Handler) GetReview(c *gin.Context) {
 			return
 		}
 		h.logger.Errorw("error getting review for user", "user_id", userID, "error", err)
+		errorResponse(c, "INTERNAL_ERROR", "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	c.JSON(http.StatusOK, resp)
+}
+
+// BulkDeactivateTeamMembers handles POST /users/bulkDeactivate request.
+// @Summary Bulk deactivate team members and safely reassign open PRs
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Param request body model.BulkDeactivateTeamRequest true "Request"
+// @Success 200 {object} model.BulkDeactivateTeamResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /users/bulkDeactivate [post] //nolint:godot // Swagger annotation should not end with period
+func (h *Handler) BulkDeactivateTeamMembers(c *gin.Context) {
+	var req model.BulkDeactivateTeamRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResponse(c, "INVALID_REQUEST", "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	resp, err := h.service.BulkDeactivateTeamMembers(c.Request.Context(), &req)
+	if err != nil {
+		if errors.Is(err, teamModel.ErrTeamNotFound) {
+			notFoundResponse(c, "team not found")
+			return
+		}
+		if errors.Is(err, model.ErrUserNotFound) {
+			notFoundResponse(c, "user not found")
+			return
+		}
+		// Check for validation errors
+		if err.Error() != "" && strings.Contains(err.Error(), "team_name is required") {
+			errorResponse(c, "INVALID_REQUEST", err.Error(), http.StatusBadRequest)
+			return
+		}
+		h.logger.Errorw("error bulk deactivating team members", "team_name", req.TeamName, "error", err)
 		errorResponse(c, "INTERNAL_ERROR", "internal server error", http.StatusInternalServerError)
 		return
 	}

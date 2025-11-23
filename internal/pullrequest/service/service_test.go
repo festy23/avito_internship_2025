@@ -385,7 +385,7 @@ func TestService_CreatePullRequest_Unit(t *testing.T) {
 		resp, err := svc.CreatePullRequest(ctx, req)
 
 		assert.Nil(t, resp)
-		assert.ErrorIs(t, err, pullrequestModel.ErrAuthorNotFound)
+		assert.ErrorIs(t, err, pullrequestModel.ErrInvalidAuthorID)
 		mockRepo.AssertExpectations(t)
 	})
 

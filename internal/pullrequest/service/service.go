@@ -96,9 +96,6 @@ func (s *service) validateCreateRequest(req *pullrequestModel.CreatePullRequestR
 	if req.PullRequestName == "" {
 		return errors.New("pull_request_name is required")
 	}
-	if req.AuthorID == "" {
-		return pullrequestModel.ErrAuthorNotFound
-	}
 
 	// Validate string lengths (CHECK constraints: 1-255)
 	if len(req.PullRequestID) == 0 || len(req.PullRequestID) > 255 {
@@ -108,7 +105,7 @@ func (s *service) validateCreateRequest(req *pullrequestModel.CreatePullRequestR
 		return errors.New("pull_request_name must be between 1 and 255 characters")
 	}
 	if len(req.AuthorID) == 0 || len(req.AuthorID) > 255 {
-		return pullrequestModel.ErrAuthorNotFound
+		return pullrequestModel.ErrInvalidAuthorID
 	}
 
 	return nil

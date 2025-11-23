@@ -141,6 +141,7 @@ go test -tags=e2e ./tests/e2e/... -v -timeout 20m
 ## Команды для запуска
 
 ### Все unit тесты
+
 ```bash
 make test
 # или
@@ -148,13 +149,15 @@ go test ./...
 ```
 
 ### Integration тесты
+
 ```bash
 make test-integration
 # или
 go test -tags=integration ./tests/integration/... -v
-```
+``
 
 ### E2E тесты
+
 ```bash
 make test-e2e
 # или
@@ -162,6 +165,54 @@ go test -tags=e2e ./tests/e2e/... -v -timeout 20m
 ```
 
 ### С покрытием кода
+
 ```bash
 make test-coverage
 ```
+
+## CI/CD
+
+Проект использует GitHub Actions для автоматического запуска тестов при push и создании Pull Request.
+
+### Локальная проверка CI/CD
+
+Перед созданием PR рекомендуется запустить те же проверки, что выполняются в CI/CD:
+
+```bash
+make ci
+```
+
+Эта команда выполняет:
+
+- Линтинг кода (`make lint`)
+- Integration тесты (`make test-integration`)
+- Unit тесты (`make test`)
+
+### GitHub Actions
+
+Workflow файл: `.github/workflows/ci.yml`
+
+**Jobs:**
+
+- `lint` - проверка кода линтером (golangci-lint)
+- `test` - запуск unit и integration тестов, генерация coverage report
+
+**Триггеры:**
+
+- Push в ветки `main` и `dev`
+- Pull Request в ветки `main` и `dev`
+
+**Требования:**
+
+- Все проверки должны пройти успешно для мержа PR
+- Coverage report загружается как артефакт
+
+### Запуск тестов в CI/CD
+
+В CI/CD выполняются:
+
+- Integration тесты с тегом `integration`
+- Unit тесты для всех модулей
+- Генерация coverage report
+
+E2E тесты не запускаются в CI/CD по умолчанию (требуют Docker и больше времени), но могут быть добавлены при необходимости.

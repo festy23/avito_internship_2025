@@ -2,7 +2,9 @@
 package handler
 
 import (
+	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -33,8 +35,28 @@ func New(svc service.Service, logger *zap.SugaredLogger) *Handler {
 // @Failure 404 {object} ErrorResponse
 // @Router /users/setIsActive [post] //nolint:godot // Swagger annotation should not end with period
 func (h *Handler) SetIsActive(c *gin.Context) {
+	// Read raw body to validate required field presence
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		errorResponse(c, "INVALID_REQUEST", "failed to read request body", http.StatusBadRequest)
+		return
+	}
+
+	// Validate that is_active field is present in JSON (required by OpenAPI spec)
+	var rawData map[string]interface{}
+	if err = json.Unmarshal(body, &rawData); err != nil {
+		errorResponse(c, "INVALID_REQUEST", "invalid JSON format", http.StatusBadRequest)
+		return
+	}
+
+	if _, exists := rawData["is_active"]; !exists {
+		errorResponse(c, "INVALID_REQUEST", "is_active field is required", http.StatusBadRequest)
+		return
+	}
+
+	// Parse into struct
 	var req model.SetIsActiveRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err = json.Unmarshal(body, &req); err != nil {
 		errorResponse(c, "INVALID_REQUEST", "invalid request body", http.StatusBadRequest)
 		return
 	}

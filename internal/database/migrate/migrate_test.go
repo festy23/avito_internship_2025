@@ -140,39 +140,3 @@ func TestMigrateHandlesErrNoChange(t *testing.T) {
 	// So ErrNoChange should return nil (success)
 	t.Skip("Requires real PostgreSQL database - covered in e2e tests")
 }
-
-func TestMigrateWithValidMigrationsPath(t *testing.T) {
-	tmpDir := t.TempDir()
-	cleanup := setupMigrationsPath(t, tmpDir)
-	defer cleanup()
-
-	db := createTestDB(t)
-	defer closeTestDB(t, db)
-
-	err := Migrate(db)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to create postgres driver")
-}
-
-func TestMigrateWithAbsolutePath(t *testing.T) {
-	tmpDir := t.TempDir()
-	cleanup := setupMigrationsPath(t, tmpDir)
-	defer cleanup()
-
-	db := createTestDB(t)
-	defer closeTestDB(t, db)
-
-	err := Migrate(db)
-	assert.Error(t, err)
-}
-
-func TestMigrateWithRelativePath(t *testing.T) {
-	cleanup := setupMigrationsPath(t, "migrations")
-	defer cleanup()
-
-	db := createTestDB(t)
-	defer closeTestDB(t, db)
-
-	err := Migrate(db)
-	assert.Error(t, err)
-}

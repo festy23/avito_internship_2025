@@ -286,18 +286,19 @@ func TestRepository_UpdateIsActive_Extended(t *testing.T) {
 		assert.Error(t, err)
 	})
 
-	t.Run("database error on fetch after update", func(t *testing.T) {
+	t.Run("update is_active and fetch updated user", func(t *testing.T) {
 		db := setupTestDB(t)
 		repo := New(db, zap.NewNop().Sugar())
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "team1")
 		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
 			"u1", "Alice", "team1", true)
 
-		// Update succeeds but fetch fails
-		// This is hard to simulate with SQLite, but we can test the error path
+		// Update is_active and verify the updated user is returned
 		user, err := repo.UpdateIsActive(ctx, "u1", false)
 		require.NoError(t, err)
-		assert.False(t, user.IsActive)
+		assert.False(t, user.IsActive, "is_active should be updated to false")
+		assert.Equal(t, "u1", user.UserID)
+		assert.Equal(t, "Alice", user.Username)
 	})
 }
 

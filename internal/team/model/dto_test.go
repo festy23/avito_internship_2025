@@ -2,6 +2,7 @@ package model
 
 import (
 	"encoding/json"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -245,8 +246,8 @@ func TestAddTeamRequest_EdgeCases(t *testing.T) {
 		members := make([]TeamMember, 200)
 		for i := 0; i < 200; i++ {
 			members[i] = TeamMember{
-				UserID:   "u" + string(rune(i)),
-				Username: "User" + string(rune(i)),
+				UserID:   "u" + strconv.Itoa(i),
+				Username: "User" + strconv.Itoa(i),
 				IsActive: i%2 == 0,
 			}
 		}

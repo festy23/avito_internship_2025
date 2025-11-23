@@ -18,6 +18,14 @@ import (
 func setupTestDB(t *testing.T) *gorm.DB {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
+
+	// Set max open connections to 1 for in-memory SQLite
+	// This ensures all operations use the same connection and see the same database state
+	// Without this, SQLite :memory: can create separate databases per connection
+	sqlDB, err := db.DB()
+	require.NoError(t, err)
+	sqlDB.SetMaxOpenConns(1)
+
 	return db
 }
 
@@ -114,20 +122,22 @@ func TestHandler_Check(t *testing.T) {
 		router := setupRouter(handler)
 
 		// Simulate concurrent health check requests
-		done := make(chan bool)
+		// Collect results in channel to avoid unsafe assert calls from goroutines
+		results := make(chan int, 10)
 		for i := 0; i < 10; i++ {
 			go func() {
 				w := httptest.NewRecorder()
 				req, _ := http.NewRequest("GET", "/health", nil)
 				router.ServeHTTP(w, req)
-				assert.Equal(t, http.StatusOK, w.Code)
-				done <- true
+				// Send status code to channel instead of calling assert in goroutine
+				results <- w.Code
 			}()
 		}
 
-		// Wait for all goroutines to complete
+		// Wait for all goroutines to complete and verify results in main goroutine
 		for i := 0; i < 10; i++ {
-			<-done
+			statusCode := <-results
+			assert.Equal(t, http.StatusOK, statusCode, "health check should return 200 OK")
 		}
 	})
 }

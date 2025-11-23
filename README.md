@@ -213,11 +213,19 @@ go test ./...
 make test-coverage
 ```
 
+### Integration тесты
+
+```bash
+make test-integration
+```
+
 ### E2E тесты
 
 ```bash
 make test-e2e
 ```
+
+Подробнее о тестировании см. [docs/TESTING.md](docs/TESTING.md).
 
 ## Линтинг
 
@@ -230,6 +238,35 @@ make lint
 ```bash
 make lint-fix
 ```
+
+Подробнее о линтере см. [docs/LINTER.md](docs/LINTER.md).
+
+## CI/CD
+
+Проект использует GitHub Actions для автоматических проверок. CI/CD запускается автоматически при push и создании Pull Request.
+
+### Локальная проверка CI/CD
+
+Перед созданием PR рекомендуется запустить те же проверки локально:
+
+```bash
+make ci
+```
+
+Эта команда выполняет:
+- Линтинг кода
+- Integration тесты
+- Unit тесты
+
+### GitHub Actions
+
+Workflow файл: `.github/workflows/ci.yml`
+
+Проверки:
+- **Lint** - проверка кода линтером
+- **Test** - запуск unit и integration тестов, генерация coverage report
+
+Статус проверок отображается в GitHub при создании Pull Request.
 
 ## Требования
 

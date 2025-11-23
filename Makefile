@@ -1,4 +1,4 @@
-.PHONY: lint lint-fix test test-coverage test-verbose test-e2e test-integration test-coverage-show
+.PHONY: lint lint-fix test test-coverage test-verbose test-e2e test-integration test-coverage-show ci
 
 lint:
 	golangci-lint run
@@ -20,9 +20,15 @@ test-coverage-show:
 test-verbose:
 	go test -v ./...
 
-test-e2e:
+test-e2e-build:
+	docker build -t avito-internship-e2e:test -f Dockerfile .
+
+test-e2e: test-e2e-build
 	go test -tags=e2e ./tests/e2e/... -v -timeout 20m
 
 test-integration:
 	go test -tags=integration ./tests/integration/... -v
+
+ci: lint test-integration test
+	@echo "All CI checks passed!"
 

@@ -137,9 +137,29 @@ func TestHandler_SetIsActive(t *testing.T) {
 		mockSvc.AssertExpectations(t)
 	})
 
-	// Note: is_active field validation is handled by OpenAPI spec, not Gin binding
-	// Gin cannot properly validate bool fields with binding:"required" because false is zero value
-	// In practice, clients will always send is_active according to OpenAPI spec
+	t.Run("missing is_active field", func(t *testing.T) {
+		mockSvc := new(mockService)
+		handler := New(mockSvc, zap.NewNop().Sugar())
+		router := setupRouter()
+		router.POST("/users/setIsActive", handler.SetIsActive)
+
+		// Request without is_active field
+		jsonBody := []byte(`{"user_id": "u1"}`)
+
+		req := httptest.NewRequest(http.MethodPost, "/users/setIsActive", bytes.NewBuffer(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		var resp ErrorResponse
+		err := json.Unmarshal(w.Body.Bytes(), &resp)
+		require.NoError(t, err)
+		assert.Equal(t, "INVALID_REQUEST", resp.Error.Code)
+		assert.Contains(t, resp.Error.Message, "is_active field is required")
+		mockSvc.AssertNotCalled(t, "SetIsActive")
+	})
 }
 
 func TestHandler_GetReview(t *testing.T) {

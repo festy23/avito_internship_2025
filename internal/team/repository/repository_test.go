@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"strconv"
 	"testing"
 	"time"
 
@@ -352,7 +353,7 @@ func TestRepository_GetTeamMembers_Extended(t *testing.T) {
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
 		for i := 1; i <= 10; i++ {
 			db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
-				"u"+string(rune(i)), "User"+string(rune(i)), "backend", true)
+				"u"+strconv.Itoa(i), "User"+strconv.Itoa(i), "backend", true)
 		}
 
 		members, err := repo.GetTeamMembers(ctx, "backend")

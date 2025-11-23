@@ -7,7 +7,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/festy23/avito_internship/internal/database"
+	"github.com/festy23/avito_internship/internal/database/database"
+	"github.com/festy23/avito_internship/internal/database/migrate"
 	"github.com/festy23/avito_internship/pkg/logger"
 	pullrequestRouter "github.com/festy23/avito_internship/internal/pullrequest/router"
 	teamRouter "github.com/festy23/avito_internship/internal/team/router"
@@ -37,6 +38,11 @@ func main() {
 	db, err := database.New()
 	if err != nil {
 		log.Fatalw("failed to connect to database", "error", err)
+	}
+
+	// Apply database migrations
+	if err := migrate.Migrate(db); err != nil {
+		log.Fatalw("failed to run migrations", "error", err)
 	}
 
 	r := gin.Default()

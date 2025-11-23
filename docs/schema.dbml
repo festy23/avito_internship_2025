@@ -1,0 +1,76 @@
+// Database schema for PR Reviewer Assignment Service
+
+Table teams {
+  team_name varchar(255) [primary key]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+  
+  Note {
+    'CHECK constraint: LENGTH(team_name) BETWEEN 1 AND 255'
+  }
+}
+
+Table users {
+  user_id varchar(255) [primary key]
+  username varchar(255) [not null]
+  team_name varchar(255) [not null]
+  is_active boolean [not null, default: true]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+  
+  indexes {
+    (team_name, is_active) [name: 'idx_users_team_active']
+    team_name
+  }
+  
+  Note {
+    'CHECK constraints: LENGTH(user_id) BETWEEN 1 AND 255, LENGTH(username) BETWEEN 1 AND 255, LENGTH(team_name) BETWEEN 1 AND 255'
+  }
+}
+
+Table pull_requests {
+  pull_request_id varchar(255) [primary key]
+  pull_request_name varchar(255) [not null]
+  author_id varchar(255) [not null]
+  status pr_status_enum [not null]
+  created_at timestamptz [not null, default: `now()`]
+  merged_at timestamptz
+  
+  indexes {
+    author_id
+    status
+  }
+  
+  Note {
+    'CHECK constraints: LENGTH(pull_request_id) BETWEEN 1 AND 255, LENGTH(pull_request_name) BETWEEN 1 AND 255, LENGTH(author_id) BETWEEN 1 AND 255'
+  }
+}
+
+Table pull_request_reviewers {
+  id bigserial [primary key]
+  pull_request_id varchar(255) [not null]
+  user_id varchar(255) [not null]
+  assigned_at timestamptz [not null, default: `now()`]
+  
+  indexes {
+    user_id [name: 'idx_reviewers_user_id']
+    pull_request_id
+    (pull_request_id, user_id) [unique]
+  }
+  
+  Note {
+    'CHECK constraints: LENGTH(pull_request_id) BETWEEN 1 AND 255, LENGTH(user_id) BETWEEN 1 AND 255',
+    'Triggers: check_max_reviewers (max 2 reviewers per PR with race condition protection), check_reviewer_not_author (author cannot be reviewer)'
+  }
+}
+
+Enum pr_status_enum {
+  OPEN
+  MERGED
+}
+
+Ref: users.team_name > teams.team_name [delete: restrict]
+Ref: pull_requests.author_id > users.user_id [delete: restrict]
+Ref: pull_request_reviewers.pull_request_id > pull_requests.pull_request_id [delete: restrict]
+Ref: pull_request_reviewers.user_id > users.user_id [delete: restrict]
+

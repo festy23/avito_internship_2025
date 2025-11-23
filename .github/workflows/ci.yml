@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.4'
+          cache-dependency-path: go.sum
+      
+      - name: Download dependencies
+        run: go mod download
+      
+      - name: Install golangci-lint v2
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.6.2
+      
+      - name: Run linter
+        run: |
+          export PATH=$PATH:$(go env GOPATH)/bin
+          golangci-lint run
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:12-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    env:
+      DB_HOST: localhost
+      DB_USER: test
+      DB_PASSWORD: test
+      DB_NAME: test_db
+      DB_PORT: 5432
+      DB_SSLMODE: disable
+      DB_TIMEZONE: UTC
+      DB_RETRY_MAX_ATTEMPTS: 3
+      DB_RETRY_INITIAL_DELAY: 500ms
+      DB_RETRY_MAX_DELAY: 2s
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.4'
+          cache-dependency-path: go.sum
+      
+      - name: Download dependencies
+        run: go mod download
+      
+      - name: Wait for PostgreSQL
+        run: |
+          until pg_isready -h localhost -p 5432 -U test; do
+            echo "Waiting for PostgreSQL..."
+            sleep 1
+          done
+      
+      - name: Run unit and integration tests
+        run: |
+          go test -tags=integration ./tests/integration/... -v
+          go test ./... -v -count=1
+      
+      - name: Generate coverage report
+        run: go test -coverprofile=coverage.out ./...
+      
+      - name: Upload coverage to artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.out
+

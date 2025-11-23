@@ -66,6 +66,7 @@ HTTP слой, обработка запросов и ответов. Испол
 #### PostgreSQL vs другие варианты
 
 **PostgreSQL vs MySQL/MariaDB:**
+
 - Более строгая типизация
 - Расширенные возможности (JSON типы, массивы)
 - Лучшая поддержка транзакций
@@ -100,7 +101,7 @@ HTTP слой, обработка запросов и ответов. Испол
 
 ## Структура проекта
 
-```
+```txt
 internal/
   team/
     handler.go      # HTTP handlers
@@ -124,4 +125,3 @@ internal/
   database/        # Подключение к БД
   middleware/      # HTTP middleware
 ```
-

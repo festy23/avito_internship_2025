@@ -29,9 +29,9 @@ func main() {
 		panic(fmt.Sprintf("failed to initialize logger: %v", err))
 	}
 	defer func() {
-		if err := log.Sync(); err != nil {
+		if syncErr := log.Sync(); syncErr != nil {
 			// Ignore sync errors on shutdown
-			_ = err
+			_ = syncErr
 		}
 	}()
 

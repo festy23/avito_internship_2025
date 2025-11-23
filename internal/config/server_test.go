@@ -88,7 +88,7 @@ func TestServerConfig_GetAddress(t *testing.T) {
 				Host: "",
 				Port: "8080",
 			},
-			expected: "8080",
+			expected: ":8080", // net.JoinHostPort adds colon for empty host
 		},
 		{
 			name: "host and port",
@@ -112,7 +112,7 @@ func TestServerConfig_GetAddress(t *testing.T) {
 				Host: "",
 				Port: "",
 			},
-			expected: "",
+			expected: "", // Empty port returns empty string
 		},
 	}
 

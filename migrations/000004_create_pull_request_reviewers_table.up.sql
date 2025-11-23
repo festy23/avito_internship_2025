@@ -21,13 +21,14 @@ RETURNS TRIGGER AS $$
 DECLARE
     reviewer_count INTEGER;
 BEGIN
-    -- Lock existing rows to prevent race condition, then count
-    -- FOR UPDATE must be on a row-level SELECT, not on COUNT
-    PERFORM 1 FROM pull_request_reviewers
+    -- Lock the parent pull_requests row first to serialize concurrent assignments
+    -- This ensures all concurrent transactions serialize on the PR-level lock
+    PERFORM 1 FROM pull_requests
     WHERE pull_request_id = NEW.pull_request_id
     FOR UPDATE;
     
-    -- Now count after locking
+    -- Now count existing reviewers after acquiring the PR-level lock
+    -- This prevents concurrent INSERTs from happening between count and insert
     SELECT COUNT(*) INTO reviewer_count
     FROM pull_request_reviewers
     WHERE pull_request_id = NEW.pull_request_id;

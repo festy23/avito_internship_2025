@@ -55,8 +55,10 @@ func SanitizeError(err error, cfg Config) error {
 		return nil
 	}
 	errMsg := err.Error()
-	// Remove password from error message if present
-	errMsg = strings.ReplaceAll(errMsg, cfg.Password, "***")
+	// Remove password from error message if present (only if password is not empty)
+	if cfg.Password != "" {
+		errMsg = strings.ReplaceAll(errMsg, cfg.Password, "***")
+	}
 	// Also remove full DSN if it appears in error
 	safeDSN := fmt.Sprintf("host=%s user=%s password=*** dbname=%s port=%s sslmode=%s TimeZone=%s",
 		cfg.Host, cfg.User, cfg.DBName, cfg.Port, cfg.SSLMode, cfg.TimeZone)

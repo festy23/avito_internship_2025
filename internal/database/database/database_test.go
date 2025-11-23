@@ -21,17 +21,17 @@ func TestNewWithConfig(t *testing.T) {
 		wantError bool
 	}{
 		{
-			name: "valid sqlite config",
+			name: "invalid host - connection refused",
 			config: config.Config{
-				Host:     "localhost",
+				Host:     "nonexistent-host-12345",
 				User:     "test",
 				Password: "test",
-				DBName:   ":memory:",
+				DBName:   "test_db",
 				Port:     "5432",
 				SSLMode:  "disable",
 				TimeZone: "UTC",
 			},
-			wantError: true, // PostgreSQL driver won't work with sqlite
+			wantError: true, // Connection will fail
 		},
 	}
 
@@ -181,19 +181,19 @@ func TestNewWithConfigSuccessPath(t *testing.T) {
 	// Test that NewWithConfig calls SetupConnectionPool
 	// This is hard to test without real DB, but we can verify the flow
 	cfg := config.Config{
-		Host:     "localhost",
+		Host:     "nonexistent-host-12345",
 		User:     "test",
 		Password: "test",
-		DBName:   ":memory:",
+		DBName:   "test_db",
 		Port:     "5432",
 		SSLMode:  "disable",
 		TimeZone: "UTC",
 	}
 
-	// This will fail because PostgreSQL driver, but we test the code path
+	// This will fail because host doesn't exist, but we test the code path
 	// Retry logic will attempt multiple times before giving up
 	db, err := NewWithConfig(cfg)
-	assert.Error(t, err) // Expected - PostgreSQL driver won't work with :memory:
+	assert.Error(t, err) // Expected - connection will fail
 	assert.Nil(t, db)
 
 	// Note: Full success test requires real PostgreSQL database.
@@ -206,10 +206,10 @@ func TestNewWithConfig_RetryBehavior(t *testing.T) {
 	// Since we can't easily test actual retries without real PostgreSQL,
 	// we verify that the function uses retry by checking error messages
 	cfg := config.Config{
-		Host:     "localhost",
+		Host:     "nonexistent-host-12345",
 		User:     "test",
 		Password: "test",
-		DBName:   ":memory:",
+		DBName:   "test_db",
 		Port:     "5432",
 		SSLMode:  "disable",
 		TimeZone: "UTC",

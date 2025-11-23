@@ -38,10 +38,36 @@ func restoreEnvVars(envVars map[string]string, originalEnv map[string]string) {
 	}
 }
 
+// unsetDBEnvVars unsets all DB_* environment variables and returns original values.
+func unsetDBEnvVars(t *testing.T) map[string]string {
+	t.Helper()
+	envVarsToUnset := []string{
+		"DB_HOST", "DB_USER", "DB_PASSWORD", "DB_NAME",
+		"DB_PORT", "DB_SSLMODE", "DB_TIMEZONE",
+	}
+	originalEnv := make(map[string]string)
+	for _, key := range envVarsToUnset {
+		originalEnv[key] = os.Getenv(key)
+		os.Unsetenv(key)
+	}
+	return originalEnv
+}
+
+// restoreDBEnvVars restores original DB_* environment variables.
+func restoreDBEnvVars(originalEnv map[string]string) {
+	for key, value := range originalEnv {
+		if value != "" {
+			os.Setenv(key, value)
+		} else {
+			os.Unsetenv(key)
+		}
+	}
+}
+
 func TestLoadConfigFromEnv(t *testing.T) {
 	t.Run("default values", func(t *testing.T) {
-		originalEnv := setupEnvVars(t, map[string]string{})
-		defer restoreEnvVars(map[string]string{}, originalEnv)
+		originalEnv := unsetDBEnvVars(t)
+		defer restoreDBEnvVars(originalEnv)
 
 		cfg := LoadConfigFromEnv()
 		expected := Config{
@@ -83,12 +109,21 @@ func TestLoadConfigFromEnv(t *testing.T) {
 	})
 
 	t.Run("partial override", func(t *testing.T) {
-		envVars := map[string]string{
-			"DB_HOST": "custom-host",
-			"DB_PORT": "9999",
+		envVarsToUnset := []string{
+			"DB_USER", "DB_PASSWORD", "DB_NAME", "DB_SSLMODE", "DB_TIMEZONE",
 		}
-		originalEnv := setupEnvVars(t, envVars)
-		defer restoreEnvVars(envVars, originalEnv)
+		originalEnv := make(map[string]string)
+		for _, key := range envVarsToUnset {
+			originalEnv[key] = os.Getenv(key)
+			os.Unsetenv(key)
+		}
+		os.Setenv("DB_HOST", "custom-host")
+		os.Setenv("DB_PORT", "9999")
+		defer func() {
+			os.Unsetenv("DB_HOST")
+			os.Unsetenv("DB_PORT")
+			restoreDBEnvVars(originalEnv)
+		}()
 
 		cfg := LoadConfigFromEnv()
 		expected := Config{

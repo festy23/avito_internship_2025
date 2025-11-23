@@ -28,18 +28,28 @@ docker-compose up
 
 2. Установите зависимости:
 
-```bash
-go mod download
-```
+   ```bash
+   go mod download
+   ```
 
-3.Настройте переменные окружения (см. раздел "Переменные окружения")
+3. Настройте переменные окружения:
 
-4.Запустите миграции и сервер:
+   Создайте файл `.env` в корне проекта (см. пример в разделе "Переменные окружения") или экспортируйте переменные окружения вручную.
 
-```bash
-# Миграции применяются автоматически при запуске
-go run cmd/server/main.go
-```
+4. Запустите PostgreSQL локально или используйте Docker:
+
+   ```bash
+   # Запуск только PostgreSQL через Docker
+   docker-compose up postgres -d
+   ```
+
+5. Запустите сервер (миграции применяются автоматически при старте):
+
+   ```bash
+   go run cmd/server/main.go
+   ```
+
+   Сервис будет доступен на `http://localhost:8080`
 
 ## Переменные окружения
 
@@ -50,11 +60,11 @@ go run cmd/server/main.go
 - `SERVER_READ_TIMEOUT` - таймаут чтения запроса (по умолчанию: `10s`)
 - `SERVER_WRITE_TIMEOUT` - таймаут записи ответа (по умолчанию: `10s`)
 - `SERVER_IDLE_TIMEOUT` - таймаут простоя соединения (по умолчанию: `120s`)
-- `GIN_MODE` - режим Gin (по умолчанию: `release`)
+- `GIN_MODE` - режим Gin (`debug`, `release`, `test`, по умолчанию: `release`)
 
 ### База данных
 
-- `DB_HOST` - хост PostgreSQL (по умолчанию: `localhost`)
+- `DB_HOST` - хост PostgreSQL (по умолчанию: `localhost`, в Docker: `postgres`)
 - `DB_USER` - пользователь БД (по умолчанию: `postgres`)
 - `DB_PASSWORD` - пароль БД (по умолчанию: `postgres`)
 - `DB_NAME` - имя БД (по умолчанию: `avito_internship`)
@@ -62,16 +72,61 @@ go run cmd/server/main.go
 - `DB_SSLMODE` - режим SSL (по умолчанию: `disable`)
 - `DB_TIMEZONE` - часовой пояс (по умолчанию: `UTC`)
 
+### Повторные попытки подключения к БД
+
+- `DB_RETRY_MAX_ATTEMPTS` - максимальное количество попыток подключения (по умолчанию: `5`)
+- `DB_RETRY_INITIAL_DELAY` - начальная задержка между попытками (по умолчанию: `1s`)
+- `DB_RETRY_MAX_DELAY` - максимальная задержка между попытками (по умолчанию: `30s`)
+- `DB_RETRY_MULTIPLIER` - множитель для экспоненциальной задержки (по умолчанию: `2.0`)
+
 ### Логгер
 
-- `LOGGER_LEVEL` - уровень логирования (по умолчанию: `info`)
-- `LOGGER_FORMAT` - формат логов (`json` или `console`, по умолчанию: `json`)
-- `LOGGER_OUTPUT` - вывод логов (`stdout` или `stderr`, по умолчанию: `stdout`)
-- `LOGGER_PRODUCTION` - режим production (по умолчанию: `true`)
+- `LOG_LEVEL` - уровень логирования (`debug`, `info`, `warn`, `error`, по умолчанию: `info`)
+- `LOG_FORMAT` - формат логов (`json` или `console`, по умолчанию: `json`)
+- `LOG_OUTPUT` - вывод логов (`stdout`, `stderr` или путь к файлу, по умолчанию: `stdout`)
 
 ### Миграции
 
 - `MIGRATIONS_PATH` - путь к директории с миграциями (по умолчанию: `migrations`)
+
+### Пример файла .env
+
+Для локальной разработки создайте файл `.env` в корне проекта:
+
+```bash
+# Server
+SERVER_HOST=
+SERVER_PORT=:8080
+SERVER_READ_TIMEOUT=10s
+SERVER_WRITE_TIMEOUT=10s
+SERVER_IDLE_TIMEOUT=120s
+GIN_MODE=release
+
+# Database
+DB_HOST=localhost
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_NAME=avito_internship
+DB_PORT=5432
+DB_SSLMODE=disable
+DB_TIMEZONE=UTC
+
+# Database Retry
+DB_RETRY_MAX_ATTEMPTS=5
+DB_RETRY_INITIAL_DELAY=1s
+DB_RETRY_MAX_DELAY=30s
+DB_RETRY_MULTIPLIER=2.0
+
+# Logger
+LOG_LEVEL=info
+LOG_FORMAT=json
+LOG_OUTPUT=stdout
+
+# Migrations
+MIGRATIONS_PATH=migrations
+```
+
+**Примечание:** При запуске через `docker-compose up` переменные окружения можно задать через файл `.env` в корне проекта или передать напрямую в `docker-compose.yml`.
 
 ## API
 
@@ -82,6 +137,22 @@ GET /health
 ```
 
 Проверка состояния сервиса и подключения к БД.
+
+**Ответ при успехе (200 OK):**
+
+```json
+{
+  "status": "ok"
+}
+```
+
+**Ответ при проблемах (503 Service Unavailable):**
+
+```json
+{
+  "status": "unhealthy"
+}
+```
 
 ### Teams
 
@@ -180,7 +251,7 @@ Content-Type: application/json
 
 ## Структура проекта
 
-```
+```text
 .
 ├── cmd/
 │   └── server/          # Точка входа приложения
@@ -254,6 +325,7 @@ make ci
 ```
 
 Эта команда выполняет:
+
 - Линтинг кода
 - Integration тесты
 - Unit тесты
@@ -263,6 +335,7 @@ make ci
 Workflow файл: `.github/workflows/ci.yml`
 
 Проверки:
+
 - **Lint** - проверка кода линтером
 - **Test** - запуск unit и integration тестов, генерация coverage report
 

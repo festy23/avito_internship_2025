@@ -10,20 +10,23 @@
 
 **Расположение**: `internal/*/handler/handler_test.go`, `internal/*/service/service_test.go`, `internal/*/repository/repository_test.go`, `internal/*/model/*_test.go`
 
-**Технологии**: 
-- `testify/mock` для моков зависимостей
+**Технологии**:
+
+- `testify/mock` для мокирования зависимостей
 - SQLite in-memory для repository тестов
 - `testify/assert` и `testify/require` для проверок
 
 **Цель**: Проверка изолированных компонентов без внешних зависимостей.
 
 **Что проверяют**:
+
 - **Handler**: HTTP запросы/ответы, валидация, маппинг ошибок на HTTP коды
 - **Service**: Бизнес-логика с моками repository, правила назначения ревьюеров, транзакции
 - **Repository**: CRUD операции, работа с БД через GORM, ограничения БД
 - **Model**: JSON сериализация, валидация, GORM интеграция, доменные ошибки
 
 **Запуск**:
+
 ```bash
 go test ./internal/... -v
 ```
@@ -37,6 +40,7 @@ go test ./internal/... -v
 **Build tag**: `integration`
 
 **Технологии**:
+
 - SQLite in-memory
 - `httptest.ResponseRecorder`
 - Полный HTTP стек
@@ -44,18 +48,21 @@ go test ./internal/... -v
 **Цель**: Быстрые тесты бизнес-логики и API контрактов без внешних зависимостей.
 
 **Характеристики**:
+
 - Быстрое выполнение (секунды)
-- Не требуют Docker
-- Используют AutoMigrate вместо реальных миграций
-- Подходят для CI/CD
+- Отсутствие зависимости от Docker
+- Использование AutoMigrate вместо реальных миграций
+- Пригодность для CI/CD
 
 **Что проверяют**:
+
 - Полный жизненный цикл PR (создание, автоназначение ревьюеров, мерж, переприсвоение)
 - Управление командами (создание, получение, множественные команды)
 - Управление пользователями (активность, получение списка PR для ревьюера)
 - Обработка ошибок и граничные случаи
 
 **Запуск**:
+
 ```bash
 make test-integration
 # или
@@ -71,6 +78,7 @@ go test -tags=integration ./tests/integration/... -v
 **Build tag**: `e2e`
 
 **Технологии**:
+
 - `testcontainers-go` для Docker контейнеров
 - PostgreSQL 12 (реальная БД)
 - Реальный HTTP сервер
@@ -79,6 +87,7 @@ go test -tags=integration ./tests/integration/... -v
 **Цель**: Проверка всей системы в условиях, близких к продакшену.
 
 **Характеристики**:
+
 - Медленное выполнение (минуты)
 - Требуют Docker daemon
 - Используют реальные миграции
@@ -88,22 +97,26 @@ go test -tags=integration ./tests/integration/... -v
 **Что проверяют**:
 
 **Business Scenarios** (`business_scenarios_test.go`):
+
 - Полный жизненный цикл PR (создание → автоназначение → переприсвоение → мерж → идемпотентность)
 - Управление активностью пользователей (неактивные не назначаются, деактивация/реактивация)
 - Лимиты количества ревьюеров (0 для 1 члена, 1 для 2 членов, 2 для 3+ членов)
 
 **Error Scenarios** (`error_scenarios_test.go`):
+
 - Ошибка `NO_CANDIDATE` при переприсвоении
 - Ошибка `NOT_ASSIGNED` при попытке переприсвоить не назначенного ревьюера
 - Множественные PR и `getReview` (возврат всех PR, включая MERGED)
 
 **Advanced Scenarios** (`advanced_scenarios_test.go`):
+
 - Конкурентное создание PR (race conditions, справедливое распределение)
 - Идемпотентность мержа (повторный мерж не меняет состояние)
 - Дублирование ключей (`TEAM_EXISTS`, `PR_EXISTS`)
 - Ошибки `NOT_FOUND` для всех endpoints
 
 **Edge Cases** (`edge_cases_test.go`):
+
 - Unicode и специальные символы (кириллица, японские, китайские символы)
 - Цепочки переприсвоений
 - Неизменяемость команд
@@ -111,6 +124,7 @@ go test -tags=integration ./tests/integration/... -v
 - Пустые списки ревьюеров
 
 **Запуск**:
+
 ```bash
 make test-e2e
 # или
@@ -118,6 +132,7 @@ go test -tags=e2e ./tests/e2e/... -v -timeout 20m
 ```
 
 **Требования**:
+
 - Docker daemon должен быть запущен
 - Достаточно ресурсов для Docker контейнеров
 
@@ -148,7 +163,7 @@ make test
 go test ./...
 ```
 
-### Integration тесты
+## Integration tests
 
 ```bash
 make test-integration

@@ -29,9 +29,7 @@ func New(db *gorm.DB, logger *zap.SugaredLogger) *Handler {
 
 // Response represents health check response.
 type Response struct {
-	Status    string `json:"status"`
-	Database  string `json:"database"`
-	Timestamp string `json:"timestamp"`
+	Status string `json:"status"`
 }
 
 // Check handles GET /health request.
@@ -40,21 +38,15 @@ func (h *Handler) Check(c *gin.Context) {
 	defer cancel()
 
 	// Check database connection
-	dbStatus := "ok"
 	if err := database.HealthCheck(ctx, h.db); err != nil {
 		h.logger.Warnw("health check failed", "error", err)
-		dbStatus = "unavailable"
 		c.JSON(http.StatusServiceUnavailable, Response{
-			Status:    "unhealthy",
-			Database:  dbStatus,
-			Timestamp: time.Now().UTC().Format(time.RFC3339),
+			Status: "unhealthy",
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, Response{
-		Status:    "healthy",
-		Database:  dbStatus,
-		Timestamp: time.Now().UTC().Format(time.RFC3339),
+		Status: "ok",
 	})
 }

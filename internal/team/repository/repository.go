@@ -113,13 +113,6 @@ func (r *repository) CreateOrUpdateUser(
 	isActive bool,
 ) (*userModel.User, error) {
 	now := time.Now()
-	// Convert boolean to int for SQLite compatibility (SQLite stores booleans as INTEGER)
-	var isActiveInt int
-	if isActive {
-		isActiveInt = 1
-	} else {
-		isActiveInt = 0
-	}
 	user := &userModel.User{
 		UserID:    userID,
 		Username:  username,
@@ -133,12 +126,13 @@ func (r *repository) CreateOrUpdateUser(
 	// Why raw SQL instead of GORM OnConflict?
 	// 1. SQLite applies DEFAULT value from schema (DEFAULT TRUE) even when GORM explicitly sets IsActive=false
 	// 2. GORM's OnConflict with clause.Assignments doesn't override SQLite's DEFAULT constraint
-	// 3. Raw SQL allows explicit INTEGER value (0/1) that bypasses DEFAULT constraint
+	// 3. Raw SQL allows explicit value that bypasses DEFAULT constraint
 	// 4. This is a known limitation when using GORM with SQLite and DEFAULT values
+	// Note: GORM handles boolean-to-INTEGER conversion automatically for SQLite
 	err := r.db.WithContext(ctx).
 		Exec("INSERT INTO users (user_id, username, team_name, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET username = ?, team_name = ?, is_active = ?, updated_at = ?",
-			userID, username, teamName, isActiveInt, now, now,
-			username, teamName, isActiveInt, now).
+			userID, username, teamName, isActive, now, now,
+			username, teamName, isActive, now).
 		Error
 
 	if err != nil {

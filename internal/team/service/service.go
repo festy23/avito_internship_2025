@@ -4,6 +4,7 @@ package service
 import (
 	"context"
 
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 
 	teamModel "github.com/festy23/avito_internship/internal/team/model"
@@ -20,15 +21,17 @@ type Service interface {
 }
 
 type service struct {
-	repo repository.Repository
-	db   *gorm.DB
+	repo   repository.Repository
+	db     *gorm.DB
+	logger *zap.SugaredLogger
 }
 
 // New creates a new team service instance.
-func New(repo repository.Repository, db *gorm.DB) Service {
+func New(repo repository.Repository, db *gorm.DB, logger *zap.SugaredLogger) Service {
 	return &service{
-		repo: repo,
-		db:   db,
+		repo:   repo,
+		db:     db,
+		logger: logger,
 	}
 }
 
@@ -47,7 +50,7 @@ func (s *service) AddTeam(ctx context.Context, req *teamModel.AddTeamRequest) (*
 	var result *teamModel.TeamResponse
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// Create repository with transaction
-		txRepo := repository.New(tx)
+		txRepo := repository.New(tx, s.logger)
 
 		// Create team
 		_, err := txRepo.Create(ctx, req.TeamName)

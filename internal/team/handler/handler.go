@@ -3,10 +3,10 @@ package handler
 
 import (
 	"errors"
-	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 
 	teamModel "github.com/festy23/avito_internship/internal/team/model"
 	"github.com/festy23/avito_internship/internal/team/service"
@@ -15,11 +15,12 @@ import (
 // Handler handles HTTP requests for team endpoints.
 type Handler struct {
 	service service.Service
+	logger  *zap.SugaredLogger
 }
 
 // New creates a new team handler instance.
-func New(svc service.Service) *Handler {
-	return &Handler{service: svc}
+func New(svc service.Service, logger *zap.SugaredLogger) *Handler {
+	return &Handler{service: svc, logger: logger}
 }
 
 // AddTeam handles POST /team/add request.
@@ -53,7 +54,7 @@ func (h *Handler) AddTeam(c *gin.Context) {
 			errorResponse(c, "INVALID_REQUEST", "members list cannot be empty", http.StatusBadRequest)
 			return
 		}
-		log.Printf("error adding team: %v", err)
+		h.logger.Errorw("error adding team", "error", err)
 		errorResponse(c, "INTERNAL_ERROR", "internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -86,7 +87,7 @@ func (h *Handler) GetTeam(c *gin.Context) {
 			notFoundResponse(c, "team not found")
 			return
 		}
-		log.Printf("error getting team %s: %v", teamName, err)
+		h.logger.Errorw("error getting team", "team_name", teamName, "error", err)
 		errorResponse(c, "INTERNAL_ERROR", "internal server error", http.StatusInternalServerError)
 		return
 	}

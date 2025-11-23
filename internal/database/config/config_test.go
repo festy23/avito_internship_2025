@@ -40,8 +40,22 @@ func restoreEnvVars(envVars map[string]string, originalEnv map[string]string) {
 
 func TestLoadConfigFromEnv(t *testing.T) {
 	t.Run("default values", func(t *testing.T) {
-		originalEnv := setupEnvVars(t, map[string]string{})
-		defer restoreEnvVars(map[string]string{}, originalEnv)
+		// Explicitly unset all DB_* env vars to test defaults
+		envVarsToUnset := []string{"DB_HOST", "DB_USER", "DB_PASSWORD", "DB_NAME", "DB_PORT", "DB_SSLMODE", "DB_TIMEZONE"}
+		originalEnv := make(map[string]string)
+		for _, key := range envVarsToUnset {
+			originalEnv[key] = os.Getenv(key)
+			os.Unsetenv(key)
+		}
+		defer func() {
+			for key, value := range originalEnv {
+				if value != "" {
+					os.Setenv(key, value)
+				} else {
+					os.Unsetenv(key)
+				}
+			}
+		}()
 
 		cfg := LoadConfigFromEnv()
 		expected := Config{
@@ -83,12 +97,27 @@ func TestLoadConfigFromEnv(t *testing.T) {
 	})
 
 	t.Run("partial override", func(t *testing.T) {
-		envVars := map[string]string{
-			"DB_HOST": "custom-host",
-			"DB_PORT": "9999",
+		// Explicitly unset other DB_* env vars to test partial override
+		envVarsToUnset := []string{"DB_USER", "DB_PASSWORD", "DB_NAME", "DB_SSLMODE", "DB_TIMEZONE"}
+		originalEnv := make(map[string]string)
+		for _, key := range envVarsToUnset {
+			originalEnv[key] = os.Getenv(key)
+			os.Unsetenv(key)
 		}
-		originalEnv := setupEnvVars(t, envVars)
-		defer restoreEnvVars(envVars, originalEnv)
+		// Set only the vars we want to override
+		os.Setenv("DB_HOST", "custom-host")
+		os.Setenv("DB_PORT", "9999")
+		defer func() {
+			os.Unsetenv("DB_HOST")
+			os.Unsetenv("DB_PORT")
+			for key, value := range originalEnv {
+				if value != "" {
+					os.Setenv(key, value)
+				} else {
+					os.Unsetenv(key)
+				}
+			}
+		}()
 
 		cfg := LoadConfigFromEnv()
 		expected := Config{

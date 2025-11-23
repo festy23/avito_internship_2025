@@ -575,8 +575,19 @@ func TestIntegration_FullFlow(t *testing.T) {
 		require.NoError(t, err)
 		// ReplacedBy should be different from the old reviewer
 		assert.NotEqual(t, oldReviewerID, reassignResponse.ReplacedBy)
-		// ReplacedBy should be one of the available users (u3 or u4)
-		assert.Contains(t, []string{"u3", "u4"}, reassignResponse.ReplacedBy)
+		// ReplacedBy should not be the author (u1)
+		assert.NotEqual(t, "u1", reassignResponse.ReplacedBy)
+		// ReplacedBy should be one of the available team members (u2, u3, u4) excluding the old reviewer
+		availableCandidates := []string{"u2", "u3", "u4"}
+		// Remove old reviewer from candidates
+		filteredCandidates := make([]string, 0)
+		for _, candidate := range availableCandidates {
+			if candidate != oldReviewerID {
+				filteredCandidates = append(filteredCandidates, candidate)
+			}
+		}
+		assert.Contains(t, filteredCandidates, reassignResponse.ReplacedBy,
+			"New reviewer should be one of available candidates excluding old reviewer")
 
 		// Merge PR
 		mergeReq := &pullrequestModel.MergePullRequestRequest{

@@ -358,12 +358,14 @@ func TestPullRequestLifecycle(t *testing.T) {
 		db := setupDB(t)
 		router := setupRouter(db)
 
-		// Setup team
+		// Setup team with 3 members: u1 (author), u2 (active), u3 (inactive)
+		// u3 is inactive so won't be assigned, making it perfect for testing NOT_ASSIGNED
 		createTeamReq := &teamModel.AddTeamRequest{
 			TeamName: "backend",
 			Members: []teamModel.TeamMember{
 				{UserID: "u1", Username: "Alice", IsActive: true},
 				{UserID: "u2", Username: "Bob", IsActive: true},
+				{UserID: "u3", Username: "Charlie", IsActive: false}, // Inactive, won't be assigned
 			},
 		}
 
@@ -375,7 +377,7 @@ func TestPullRequestLifecycle(t *testing.T) {
 
 		assert.Equal(t, http.StatusCreated, w.Code, "team should be created successfully")
 
-		// Create PR
+		// Create PR (will assign u2, but not u1 as author or u3 as inactive)
 		createPRReq := &pullrequestModel.CreatePullRequestRequest{
 			PullRequestID:   "pr-1",
 			PullRequestName: "Add feature",
@@ -388,10 +390,13 @@ func TestPullRequestLifecycle(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		router.ServeHTTP(w, req)
 
-		// Attempt reassign non-existent reviewer
+		assert.Equal(t, http.StatusCreated, w.Code, "PR should be created successfully")
+
+		// Attempt reassign u3 (exists in team but is not assigned as reviewer)
+		// Should return 409 NOT_ASSIGNED
 		reassignReq := &pullrequestModel.ReassignReviewerRequest{
 			PullRequestID: "pr-1",
-			OldUserID:     "u999",
+			OldUserID:     "u3",
 		}
 
 		body, _ = json.Marshal(reassignReq)

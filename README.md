@@ -4,7 +4,7 @@
 
 ## Автор
 
-Проект выполнен **Коноваловым Иван**.
+Проект выполнил **Коновалов Иван**.
 
 ## Описание
 
@@ -28,7 +28,7 @@ docker-compose up
 
 ### Локальная разработка
 
-1. Убедитесь, что установлены Go 1.22+ и PostgreSQL 12+
+1. Убедитесь, что установлены Go 1.25.4+ и PostgreSQL 12+
 
 2. Установите зависимости:
 
@@ -420,14 +420,56 @@ make ci
 - Integration тесты
 - Unit тесты
 
+### Локальное тестирование CI/CD
+
+Для быстрой локальной проверки используйте команды `ci-local*` (запускают команды напрямую без Docker):
+
+```bash
+# Запуск всех CI checks
+make ci-local
+
+# Запуск отдельных checks
+make ci-local-lint    # Только lint
+make ci-local-test    # Только unit и integration тесты
+make ci-local-e2e     # Только E2E тесты
+```
+
+### Локальное тестирование GitHub Actions
+
+Для локального тестирования GitHub Actions workflows используется инструмент [act](https://github.com/nektos/act).
+
+**Требования:**
+
+- Docker должен быть установлен и запущен
+- `act` установлен (через `brew install act` на macOS)
+
+**Использование:**
+
+```bash
+# Просмотр доступных jobs
+make ci-act-list
+
+# Запуск всех CI jobs через act
+make ci-act
+
+# Запуск отдельных jobs через act
+make ci-act-lint    # Только lint через act
+make ci-act-test    # Только unit и integration тесты через act
+make ci-act-e2e     # Только E2E тесты через act
+```
+
+Подробнее см. [docs/CI_LOCAL_TESTING.md](docs/CI_LOCAL_TESTING.md).
+
 ### GitHub Actions
 
 Workflow файл: `.github/workflows/ci.yml`
 
 Проверки:
 
-- **Lint** - проверка кода линтером
-- **Test** - запуск unit и integration тестов, генерация coverage report
+- **Lint** - проверка кода линтером (всегда)
+- **Test** - запуск unit тестов, генерация coverage report (всегда)
+- **Integration Tests** - запуск integration тестов (только на `dev` и `main`)
+- **E2E Tests** - запуск E2E тестов (только на `main`)
 
 Статус проверок отображается в GitHub при создании Pull Request.
 
@@ -447,7 +489,7 @@ Workflow файл: `.github/workflows/ci.yml`
 
 ## Требования
 
-- Go 1.22+
+- Go 1.25.4+
 - PostgreSQL 12+
 - Docker и Docker Compose (для запуска через docker-compose)
 
@@ -459,6 +501,7 @@ Workflow файл: `.github/workflows/ci.yml`
 - [Тестирование](docs/TESTING.md)
 - [Нагрузочное тестирование](docs/LOAD_TESTING.md)
 - [Линтер](docs/LINTER.md)
+- [Локальное тестирование CI](docs/CI_LOCAL_TESTING.md)
 - [OpenAPI спецификация](api/openapi.yml)
 
 ### Примечание об OpenAPI спецификации

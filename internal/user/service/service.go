@@ -273,7 +273,7 @@ func (s *service) reassignDeactivatedReviewersOptimized(
 		return nil // No deactivated reviewers in this PR
 	}
 
-	// Filter candidates: exclude author and already assigned reviewers
+	// Filter candidates: exclude author, already assigned reviewers, and deactivated users
 	reviewerSet := make(map[string]bool, len(reviewers))
 	for _, reviewerID := range reviewers {
 		reviewerSet[reviewerID] = true
@@ -281,12 +281,19 @@ func (s *service) reassignDeactivatedReviewersOptimized(
 
 	filteredCandidates := make([]userModel.User, 0, len(activeCandidates))
 	for _, candidate := range activeCandidates {
+		// Skip author
 		if candidate.UserID == authorID {
 			continue
 		}
-		if !reviewerSet[candidate.UserID] {
-			filteredCandidates = append(filteredCandidates, candidate)
+		// Skip already assigned reviewers
+		if reviewerSet[candidate.UserID] {
+			continue
 		}
+		// Skip deactivated users (they were in activeCandidates before deactivation)
+		if deactivatedSet[candidate.UserID] {
+			continue
+		}
+		filteredCandidates = append(filteredCandidates, candidate)
 	}
 
 	// Reassign each deactivated reviewer

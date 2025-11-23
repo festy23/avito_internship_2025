@@ -6,7 +6,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -135,11 +134,6 @@ func (h *Handler) BulkDeactivateTeamMembers(c *gin.Context) {
 		}
 		if errors.Is(err, model.ErrUserNotFound) {
 			notFoundResponse(c, "user not found")
-			return
-		}
-		// Check for validation errors
-		if err.Error() != "" && strings.Contains(err.Error(), "team_name is required") {
-			errorResponse(c, "INVALID_REQUEST", err.Error(), http.StatusBadRequest)
 			return
 		}
 		h.logger.Errorw("error bulk deactivating team members", "team_name", req.TeamName, "error", err)

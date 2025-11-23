@@ -121,46 +121,54 @@ func (r *repository) GetAssignedPullRequests(ctx context.Context, userID string)
 	return prs, nil
 }
 
-// BulkDeactivateTeamMembers deactivates all active members of a team.
+// BulkDeactivateTeamMembers deactivates all active members of a team atomically.
+// Uses PostgreSQL RETURNING clause to get updated user IDs in a single operation,
+// avoiding TOCTOU (Time-of-check to time-of-use) race conditions.
 func (r *repository) BulkDeactivateTeamMembers(ctx context.Context, teamName string) ([]string, error) {
 	r.logger.Infow("BulkDeactivateTeamMembers called", "team_name", teamName)
 
 	var deactivatedUserIDs []string
 
-	// Get active team members first
-	var activeUsers []model.User
-	err := r.db.WithContext(ctx).
-		Where("team_name = ? AND is_active = ?", teamName, true).
-		Find(&activeUsers).Error
-
+	// Use raw SQL with RETURNING clause for atomic update and fetch
+	// This ensures we only return IDs of rows actually updated by this operation
+	sqlDB, err := r.db.DB()
 	if err != nil {
-		r.logger.Errorw("BulkDeactivateTeamMembers failed to get active users", "team_name", teamName, "error", err)
+		r.logger.Errorw("BulkDeactivateTeamMembers failed to get sql.DB", "team_name", teamName, "error", err)
 		return nil, err
 	}
 
-	if len(activeUsers) == 0 {
-		r.logger.Debugw("BulkDeactivateTeamMembers no active users found", "team_name", teamName)
-		return []string{}, nil
+	query := `
+		UPDATE users 
+		SET is_active = false 
+		WHERE team_name = $1 AND is_active = true 
+		RETURNING user_id
+	`
+
+	rows, err := sqlDB.QueryContext(ctx, query, teamName)
+	if err != nil {
+		r.logger.Errorw("BulkDeactivateTeamMembers database error", "team_name", teamName, "error", err)
+		return nil, err
+	}
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil {
+			r.logger.Errorw("BulkDeactivateTeamMembers failed to close rows", "team_name", teamName, "error", closeErr)
+		}
+	}()
+
+	for rows.Next() {
+		var userID string
+		if err := rows.Scan(&userID); err != nil {
+			r.logger.Errorw("BulkDeactivateTeamMembers failed to scan user_id", "team_name", teamName, "error", err)
+			return nil, err
+		}
+		deactivatedUserIDs = append(deactivatedUserIDs, userID)
 	}
 
-	// Collect user IDs
-	userIDs := make([]string, 0, len(activeUsers))
-	for _, user := range activeUsers {
-		userIDs = append(userIDs, user.UserID)
+	if err := rows.Err(); err != nil {
+		r.logger.Errorw("BulkDeactivateTeamMembers row iteration error", "team_name", teamName, "error", err)
+		return nil, err
 	}
 
-	// Bulk update
-	result := r.db.WithContext(ctx).
-		Model(&model.User{}).
-		Where("team_name = ? AND is_active = ?", teamName, true).
-		Update("is_active", false)
-
-	if result.Error != nil {
-		r.logger.Errorw("BulkDeactivateTeamMembers database error", "team_name", teamName, "error", result.Error)
-		return nil, result.Error
-	}
-
-	deactivatedUserIDs = userIDs
 	r.logger.Infow(
 		"BulkDeactivateTeamMembers completed",
 		"team_name",

@@ -188,15 +188,26 @@ func TestLoad_MergePR(t *testing.T) {
 
 			if err != nil {
 				metrics.errorRequests++
+				t.Logf("TestLoad_MergePR request error: %v", err)
 				continue
 			}
 
 			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 				metrics.successRequests++
+				resp.Body.Close()
 			} else {
 				metrics.errorRequests++
+				// Read and log response body for non-2xx responses
+				if resp.Body != nil {
+					bodyBytes, readErr := io.ReadAll(resp.Body)
+					if readErr != nil {
+						t.Errorf("TestLoad_MergePR: failed to read error response body: %v", readErr)
+					} else {
+						t.Logf("TestLoad_MergePR: non-2xx response (status %d): %s", resp.StatusCode, string(bodyBytes))
+					}
+					resp.Body.Close()
+				}
 			}
-			resp.Body.Close()
 		}
 	}
 
@@ -342,13 +353,26 @@ func setupPR(t *testing.T) string {
 		"author_id":         "u1",
 	}
 
-	body, _ := json.Marshal(reqBody)
-	req, _ := http.NewRequest("POST", baseURL+"/pullRequest/create", bytes.NewBuffer(body))
+	body, err := json.Marshal(reqBody)
+	require.NoError(t, err)
+
+	req, err := http.NewRequest("POST", baseURL+"/pullRequest/create", bytes.NewBuffer(body))
+	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
+
+	// Validate response status before returning PR ID
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		bodyBytes, readErr := io.ReadAll(resp.Body)
+		bodyStr := string(bodyBytes)
+		if readErr != nil {
+			bodyStr = fmt.Sprintf("failed to read response body: %v", readErr)
+		}
+		t.Fatalf("setupPR failed: expected 2xx status, got %d. Response body: %s", resp.StatusCode, bodyStr)
+	}
 
 	return prID
 }

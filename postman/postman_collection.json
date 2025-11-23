@@ -1,0 +1,1298 @@
+{
+	"info": {
+		"_postman_id": "pr-reviewer-service-collection",
+		"name": "PR Reviewer Assignment Service",
+		"description": "API тесты для сервиса назначения ревьюеров для Pull Request'ов",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Health",
+			"item": [
+				{
+					"name": "Health Check",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has status field\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('status');",
+									"    pm.expect(jsonData.status).to.eql('ok');",
+									"});",
+									"",
+									"pm.test(\"Response time is less than 300ms\", function () {",
+									"    pm.expect(pm.response.responseTime).to.be.below(300);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"health"
+							]
+						},
+						"description": "Проверка работоспособности сервиса"
+					},
+					"response": []
+				}
+			],
+			"description": "Health check эндпоинты"
+		},
+		{
+			"name": "Teams",
+			"item": [
+				{
+					"name": "Create Team",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 201\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test(\"Response has team object\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('team');",
+									"    pm.expect(jsonData.team).to.have.property('team_name');",
+									"    pm.expect(jsonData.team).to.have.property('members');",
+									"    pm.expect(jsonData.team.members).to.be.an('array');",
+									"});",
+									"",
+									"pm.test(\"Team members have required fields\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.team.members.length > 0) {",
+									"        jsonData.team.members.forEach(function(member) {",
+									"            pm.expect(member).to.have.property('user_id');",
+									"            pm.expect(member).to.have.property('username');",
+									"            pm.expect(member).to.have.property('is_active');",
+									"        });",
+									"    }",
+									"});",
+									"",
+									"// Сохраняем team_name для последующих запросов",
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set('team_name', jsonData.team.team_name);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"team_name\": \"backend_team\",\n    \"members\": [\n        {\n            \"user_id\": \"u1\",\n            \"username\": \"Alice\",\n            \"is_active\": true\n        },\n        {\n            \"user_id\": \"u2\",\n            \"username\": \"Bob\",\n            \"is_active\": true\n        },\n        {\n            \"user_id\": \"u3\",\n            \"username\": \"Charlie\",\n            \"is_active\": true\n        }\n    ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/team/add",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"team",
+								"add"
+							]
+						},
+						"description": "Создать команду с участниками"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Team",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has team_name and members\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('team_name');",
+									"    pm.expect(jsonData).to.have.property('members');",
+									"    pm.expect(jsonData.members).to.be.an('array');",
+									"});",
+									"",
+									"pm.test(\"Team members have required fields\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    jsonData.members.forEach(function(member) {",
+									"        pm.expect(member).to.have.property('user_id');",
+									"        pm.expect(member).to.have.property('username');",
+									"        pm.expect(member).to.have.property('is_active');",
+									"    });",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/team/get?team_name={{team_name}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"team",
+								"get"
+							],
+							"query": [
+								{
+									"key": "team_name",
+									"value": "{{team_name}}",
+									"description": "Уникальное имя команды"
+								}
+							]
+						},
+						"description": "Получить команду с участниками"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Team - Not Found",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"pm.test(\"Response has error object\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('error');",
+									"    pm.expect(jsonData.error).to.have.property('code');",
+									"    pm.expect(jsonData.error.code).to.eql('NOT_FOUND');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/team/get?team_name=nonexistent_team",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"team",
+								"get"
+							],
+							"query": [
+								{
+									"key": "team_name",
+									"value": "nonexistent_team"
+								}
+							]
+						},
+						"description": "Проверка обработки несуществующей команды"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Team - Duplicate",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Response has error with TEAM_EXISTS code\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('error');",
+									"    pm.expect(jsonData.error).to.have.property('code');",
+									"    pm.expect(jsonData.error.code).to.eql('TEAM_EXISTS');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"team_name\": \"{{team_name}}\",\n    \"members\": []\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/team/add",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"team",
+								"add"
+							]
+						},
+						"description": "Проверка обработки дубликата команды"
+					},
+					"response": []
+				}
+			],
+			"description": "Эндпоинты для работы с командами"
+		},
+		{
+			"name": "Users",
+			"item": [
+				{
+					"name": "Set User Active",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has user object\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('user');",
+									"    pm.expect(jsonData.user).to.have.property('user_id');",
+									"    pm.expect(jsonData.user).to.have.property('username');",
+									"    pm.expect(jsonData.user).to.have.property('team_name');",
+									"    pm.expect(jsonData.user).to.have.property('is_active');",
+									"});",
+									"",
+									"pm.test(\"is_active is updated\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.user.is_active).to.eql(false);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"user_id\": \"u2\",\n    \"is_active\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users/setIsActive",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"setIsActive"
+							]
+						},
+						"description": "Установить флаг активности пользователя"
+					},
+					"response": []
+				},
+				{
+					"name": "Set User Active - Not Found",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"pm.test(\"Response has error with NOT_FOUND code\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('error');",
+									"    pm.expect(jsonData.error.code).to.eql('NOT_FOUND');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"user_id\": \"nonexistent_user\",\n    \"is_active\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users/setIsActive",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"setIsActive"
+							]
+						},
+						"description": "Проверка обработки несуществующего пользователя"
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Reviews",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has user_id and pull_requests\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('user_id');",
+									"    pm.expect(jsonData).to.have.property('pull_requests');",
+									"    pm.expect(jsonData.pull_requests).to.be.an('array');",
+									"});",
+									"",
+									"pm.test(\"Pull requests have required fields\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    jsonData.pull_requests.forEach(function(pr) {",
+									"        pm.expect(pr).to.have.property('pull_request_id');",
+									"        pm.expect(pr).to.have.property('pull_request_name');",
+									"        pm.expect(pr).to.have.property('author_id');",
+									"        pm.expect(pr).to.have.property('status');",
+									"        pm.expect(['OPEN', 'MERGED']).to.include(pr.status);",
+									"    });",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/users/getReview?user_id={{reviewer_user_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"getReview"
+							],
+							"query": [
+								{
+									"key": "user_id",
+									"value": "{{reviewer_user_id}}",
+									"description": "Идентификатор пользователя"
+								}
+							]
+						},
+						"description": "Получить PR'ы, где пользователь назначен ревьювером"
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Reviews - Empty List",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has user_id and empty pull_requests array\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('user_id');",
+									"    pm.expect(jsonData).to.have.property('pull_requests');",
+									"    pm.expect(jsonData.pull_requests).to.be.an('array');",
+									"    pm.expect(jsonData.pull_requests.length).to.eql(0);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/users/getReview?user_id=nonexistent_user",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"getReview"
+							],
+							"query": [
+								{
+									"key": "user_id",
+									"value": "nonexistent_user"
+								}
+							]
+						},
+						"description": "Проверка обработки несуществующего пользователя (возвращает 200 с пустым списком)"
+					},
+					"response": []
+				}
+			],
+			"description": "Эндпоинты для работы с пользователями"
+		},
+		{
+			"name": "Pull Requests",
+			"item": [
+				{
+					"name": "Create PR",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 201\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test(\"Response has pr object\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('pr');",
+									"    pm.expect(jsonData.pr).to.have.property('pull_request_id');",
+									"    pm.expect(jsonData.pr).to.have.property('pull_request_name');",
+									"    pm.expect(jsonData.pr).to.have.property('author_id');",
+									"    pm.expect(jsonData.pr).to.have.property('status');",
+									"    pm.expect(jsonData.pr).to.have.property('assigned_reviewers');",
+									"});",
+									"",
+									"pm.test(\"PR status is OPEN\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.pr.status).to.eql('OPEN');",
+									"});",
+									"",
+									"pm.test(\"Assigned reviewers is array with 0-2 items\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.pr.assigned_reviewers).to.be.an('array');",
+									"    pm.expect(jsonData.pr.assigned_reviewers.length).to.be.at.most(2);",
+									"});",
+									"",
+									"// Сохраняем PR ID для последующих запросов",
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set('pr_id', jsonData.pr.pull_request_id);",
+									"    if (jsonData.pr.assigned_reviewers.length > 0) {",
+									"        pm.environment.set('reviewer_user_id', jsonData.pr.assigned_reviewers[0]);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"pull_request_id\": \"pr-1001\",\n    \"pull_request_name\": \"Add search feature\",\n    \"author_id\": \"u1\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/pullRequest/create",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"pullRequest",
+								"create"
+							]
+						},
+						"description": "Создать PR и автоматически назначить до 2 ревьюверов из команды автора"
+					},
+					"response": []
+				},
+				{
+					"name": "Create PR - No Reviewers Available",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 201\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test(\"PR created with empty reviewers list\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.pr.assigned_reviewers).to.be.an('array');",
+									"    pm.expect(jsonData.pr.assigned_reviewers.length).to.eql(0);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"pull_request_id\": \"pr-no-reviewers\",\n    \"pull_request_name\": \"PR without reviewers\",\n    \"author_id\": \"u1\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/pullRequest/create",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"pullRequest",
+								"create"
+							]
+						},
+						"description": "Создать PR когда нет доступных ревьюеров (должен создаться с пустым массивом)"
+					},
+					"response": []
+				},
+				{
+					"name": "Create PR - Duplicate",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 409\", function () {",
+									"    pm.response.to.have.status(409);",
+									"});",
+									"",
+									"pm.test(\"Response has error with PR_EXISTS code\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('error');",
+									"    pm.expect(jsonData.error.code).to.eql('PR_EXISTS');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"pull_request_id\": \"{{pr_id}}\",\n    \"pull_request_name\": \"Duplicate PR\",\n    \"author_id\": \"u1\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/pullRequest/create",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"pullRequest",
+								"create"
+							]
+						},
+						"description": "Проверка обработки дубликата PR"
+					},
+					"response": []
+				},
+				{
+					"name": "Create PR - Author Not Found",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"pm.test(\"Response has error with NOT_FOUND code\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('error');",
+									"    pm.expect(jsonData.error.code).to.eql('NOT_FOUND');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"pull_request_id\": \"pr-notfound\",\n    \"pull_request_name\": \"PR with nonexistent author\",\n    \"author_id\": \"nonexistent_author\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/pullRequest/create",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"pullRequest",
+								"create"
+							]
+						},
+						"description": "Проверка обработки несуществующего автора"
+					},
+					"response": []
+				},
+				{
+					"name": "Merge PR",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"PR status is MERGED\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.pr.status).to.eql('MERGED');",
+									"});",
+									"",
+									"pm.test(\"PR has mergedAt timestamp\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.pr).to.have.property('mergedAt');",
+									"    pm.expect(jsonData.pr.mergedAt).to.not.be.null;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"pull_request_id\": \"{{pr_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/pullRequest/merge",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"pullRequest",
+								"merge"
+							]
+						},
+						"description": "Пометить PR как MERGED (идемпотентная операция)"
+					},
+					"response": []
+				},
+				{
+					"name": "Merge PR - Idempotent",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 (idempotent)\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"PR status is still MERGED\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.pr.status).to.eql('MERGED');",
+									"});",
+									"",
+									"pm.test(\"No error returned on duplicate merge\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.not.have.property('error');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"pull_request_id\": \"{{pr_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/pullRequest/merge",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"pullRequest",
+								"merge"
+							]
+						},
+						"description": "Проверка идемпотентности операции merge (повторный вызов)"
+					},
+					"response": []
+				},
+				{
+					"name": "Merge PR - Not Found",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"pm.test(\"Response has error with NOT_FOUND code\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('error');",
+									"    pm.expect(jsonData.error.code).to.eql('NOT_FOUND');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"pull_request_id\": \"nonexistent_pr\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/pullRequest/merge",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"pullRequest",
+								"merge"
+							]
+						},
+						"description": "Проверка обработки несуществующего PR"
+					},
+					"response": []
+				},
+				{
+					"name": "Reassign Reviewer",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has pr and replaced_by\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('pr');",
+									"    pm.expect(jsonData).to.have.property('replaced_by');",
+									"});",
+									"",
+									"pm.test(\"Old reviewer is replaced\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    var oldReviewerId = pm.environment.get('reviewer_user_id');",
+									"    pm.expect(jsonData.pr.assigned_reviewers).to.not.include(oldReviewerId);",
+									"});",
+									"",
+									"pm.test(\"New reviewer is in assigned_reviewers\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.pr.assigned_reviewers).to.include(jsonData.replaced_by);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"pull_request_id\": \"{{pr_id}}\",\n    \"old_user_id\": \"{{reviewer_user_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/pullRequest/reassign",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"pullRequest",
+								"reassign"
+							]
+						},
+						"description": "Переназначить конкретного ревьювера на другого из его команды"
+					},
+					"response": []
+				},
+				{
+					"name": "Reassign Reviewer - PR Merged",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 409\", function () {",
+									"    pm.response.to.have.status(409);",
+									"});",
+									"",
+									"pm.test(\"Response has error with PR_MERGED code\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('error');",
+									"    pm.expect(jsonData.error.code).to.eql('PR_MERGED');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"pull_request_id\": \"{{pr_id}}\",\n    \"old_user_id\": \"{{reviewer_user_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/pullRequest/reassign",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"pullRequest",
+								"reassign"
+							]
+						},
+						"description": "Проверка невозможности переназначения после MERGED"
+					},
+					"response": []
+				},
+				{
+					"name": "Reassign Reviewer - Not Assigned",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 409\", function () {",
+									"    pm.response.to.have.status(409);",
+									"});",
+									"",
+									"pm.test(\"Response has error with NOT_ASSIGNED code\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('error');",
+									"    pm.expect(jsonData.error.code).to.eql('NOT_ASSIGNED');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"pull_request_id\": \"{{pr_id}}\",\n    \"old_user_id\": \"u999\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/pullRequest/reassign",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"pullRequest",
+								"reassign"
+							]
+						},
+						"description": "Проверка обработки случая, когда пользователь не был назначен ревьювером"
+					},
+					"response": []
+				},
+				{
+					"name": "Reassign Reviewer - No Candidate",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 409\", function () {",
+									"    pm.response.to.have.status(409);",
+									"});",
+									"",
+									"pm.test(\"Response has error with NO_CANDIDATE code\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('error');",
+									"    pm.expect(jsonData.error.code).to.eql('NO_CANDIDATE');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"pull_request_id\": \"{{pr_id}}\",\n    \"old_user_id\": \"{{reviewer_user_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/pullRequest/reassign",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"pullRequest",
+								"reassign"
+							]
+						},
+						"description": "Проверка обработки случая, когда нет доступных кандидатов для замены"
+					},
+					"response": []
+				}
+			],
+			"description": "Эндпоинты для работы с Pull Request'ами"
+		},
+		{
+			"name": "E2E Flow",
+			"item": [
+				{
+					"name": "Complete Flow",
+					"item": [
+						{
+							"name": "1. Create Team",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"Status code is 201\", function () {",
+											"    pm.response.to.have.status(201);",
+											"});",
+											"",
+											"var jsonData = pm.response.json();",
+											"pm.environment.set('e2e_team_name', jsonData.team.team_name);",
+											"pm.environment.set('e2e_user1_id', jsonData.team.members[0].user_id);",
+											"pm.environment.set('e2e_user2_id', jsonData.team.members[1].user_id);"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"team_name\": \"e2e_test_team\",\n    \"members\": [\n        {\n            \"user_id\": \"e2e_u1\",\n            \"username\": \"E2E User 1\",\n            \"is_active\": true\n        },\n        {\n            \"user_id\": \"e2e_u2\",\n            \"username\": \"E2E User 2\",\n            \"is_active\": true\n        }\n    ]\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/team/add",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"team",
+										"add"
+									]
+								}
+							},
+							"response": []
+						},
+					{
+						"name": "2. Create PR",
+						"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"Status code is 201\", function () {",
+											"    pm.response.to.have.status(201);",
+											"});",
+											"",
+											"var jsonData = pm.response.json();",
+											"pm.environment.set('e2e_pr_id', jsonData.pr.pull_request_id);",
+											"if (jsonData.pr.assigned_reviewers.length > 0) {",
+											"    pm.environment.set('e2e_reviewer_id', jsonData.pr.assigned_reviewers[0]);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"pull_request_id\": \"e2e_pr_001\",\n    \"pull_request_name\": \"E2E Test PR\",\n    \"author_id\": \"{{e2e_user1_id}}\"\n}"
+								},
+								"url": {
+								"raw": "{{base_url}}/pullRequest/create",
+								"host": [
+									"{{base_url}}"
+								],
+								"path": [
+									"pullRequest",
+									"create"
+								]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "3. Get User Reviews",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"Status code is 200\", function () {",
+											"    pm.response.to.have.status(200);",
+											"});",
+											"",
+											"pm.test(\"User has assigned PRs\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    pm.expect(jsonData.pull_requests.length).to.be.at.least(1);",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/users/getReview?user_id={{e2e_reviewer_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"users",
+										"getReview"
+									],
+									"query": [
+										{
+											"key": "user_id",
+											"value": "{{e2e_reviewer_id}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+						"name": "4. Merge PR",
+						"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"Status code is 200\", function () {",
+											"    pm.response.to.have.status(200);",
+											"});",
+											"",
+											"pm.test(\"PR is MERGED\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    pm.expect(jsonData.pr.status).to.eql('MERGED');",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"pull_request_id\": \"{{e2e_pr_id}}\"\n}"
+								},
+								"url": {
+								"raw": "{{base_url}}/pullRequest/merge",
+								"host": [
+									"{{base_url}}"
+								],
+								"path": [
+									"pullRequest",
+									"merge"
+								]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "5. Try Reassign After Merge",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"Status code is 409\", function () {",
+											"    pm.response.to.have.status(409);",
+											"});",
+											"",
+											"pm.test(\"Error code is PR_MERGED\", function () {",
+											"    var jsonData = pm.response.json();",
+											"    pm.expect(jsonData.error.code).to.eql('PR_MERGED');",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"pull_request_id\": \"{{e2e_pr_id}}\",\n    \"old_user_id\": \"{{e2e_reviewer_id}}\"\n}"
+							},
+							"url": {
+								"raw": "{{base_url}}/pullRequest/reassign",
+								"host": [
+									"{{base_url}}"
+								],
+								"path": [
+									"pullRequest",
+									"reassign"
+								]
+								}
+							},
+							"response": []
+						}
+					],
+					"description": "Полный E2E тест: создание команды → создание PR → получение ревью → merge → попытка переназначения после merge"
+				}
+			],
+			"description": "End-to-end тесты полного потока работы с API"
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8080",
+			"type": "string"
+		}
+	]
+}
+

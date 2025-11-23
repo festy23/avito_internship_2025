@@ -48,9 +48,7 @@ func TestHandler_Check(t *testing.T) {
 		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
-		assert.Contains(t, w.Body.String(), `"status":"healthy"`)
-		assert.Contains(t, w.Body.String(), `"database":"ok"`)
-		assert.Contains(t, w.Body.String(), `"timestamp"`)
+		assert.Contains(t, w.Body.String(), `"status":"ok"`)
 	})
 
 	t.Run("failure - database is unavailable", func(t *testing.T) {
@@ -70,8 +68,6 @@ func TestHandler_Check(t *testing.T) {
 
 		assert.Equal(t, http.StatusServiceUnavailable, w.Code)
 		assert.Contains(t, w.Body.String(), `"status":"unhealthy"`)
-		assert.Contains(t, w.Body.String(), `"database":"unavailable"`)
-		assert.Contains(t, w.Body.String(), `"timestamp"`)
 	})
 
 	t.Run("context with timeout", func(t *testing.T) {
@@ -110,9 +106,9 @@ func TestHandler_Check(t *testing.T) {
 		// Check Content-Type
 		assert.Equal(t, "application/json; charset=utf-8", w.Header().Get("Content-Type"))
 
-		// Verify timestamp format (RFC3339)
+		// Verify response contains only status field
 		body := w.Body.String()
-		assert.Regexp(t, `"timestamp":"20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(Z|[+-]\d{2}:\d{2})"`, body)
+		assert.Contains(t, body, `"status":"ok"`)
 	})
 
 	t.Run("multiple concurrent health checks", func(t *testing.T) {
@@ -164,14 +160,10 @@ func TestNew(t *testing.T) {
 func TestResponse(t *testing.T) {
 	t.Run("response struct has correct fields", func(t *testing.T) {
 		resp := Response{
-			Status:    "healthy",
-			Database:  "ok",
-			Timestamp: time.Now().UTC().Format(time.RFC3339),
+			Status: "ok",
 		}
 
-		assert.Equal(t, "healthy", resp.Status)
-		assert.Equal(t, "ok", resp.Database)
-		assert.NotEmpty(t, resp.Timestamp)
+		assert.Equal(t, "ok", resp.Status)
 	})
 }
 
@@ -236,7 +228,7 @@ func TestHealthCheckIntegration(t *testing.T) {
 		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
-		assert.Contains(t, w.Body.String(), `"status":"healthy"`)
+		assert.Contains(t, w.Body.String(), `"status":"ok"`)
 	})
 }
 

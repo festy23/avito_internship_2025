@@ -24,6 +24,7 @@ go.work
 bin/
 dist/
 build/
+server
 
 # IDE and editor files
 .idea/

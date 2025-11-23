@@ -15,6 +15,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -97,8 +98,8 @@ func prSetupE2EDB(t *testing.T) *gorm.DB {
 func prSetupE2ERouter(db *gorm.DB) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	teamRouter.RegisterRoutes(r, db)
-	pullrequestRouter.RegisterRoutes(r, db)
+	teamRouter.RegisterRoutes(r, db, zap.NewNop().Sugar())
+	pullrequestRouter.RegisterRoutes(r, db, zap.NewNop().Sugar())
 	return r
 }
 

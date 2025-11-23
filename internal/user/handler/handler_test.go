@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 
 	"github.com/festy23/avito_internship/internal/user/model"
 	"github.com/festy23/avito_internship/internal/user/service"
@@ -51,7 +52,7 @@ func setupRouter() *gin.Engine {
 func TestHandler_SetIsActive(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		mockSvc := new(mockService)
-		handler := New(mockSvc)
+		handler := New(mockSvc, zap.NewNop().Sugar())
 		router := setupRouter()
 		router.POST("/users/setIsActive", handler.SetIsActive)
 
@@ -90,7 +91,7 @@ func TestHandler_SetIsActive(t *testing.T) {
 
 	t.Run("invalid request body", func(t *testing.T) {
 		mockSvc := new(mockService)
-		handler := New(mockSvc)
+		handler := New(mockSvc, zap.NewNop().Sugar())
 		router := setupRouter()
 		router.POST("/users/setIsActive", handler.SetIsActive)
 
@@ -110,7 +111,7 @@ func TestHandler_SetIsActive(t *testing.T) {
 
 	t.Run("user not found", func(t *testing.T) {
 		mockSvc := new(mockService)
-		handler := New(mockSvc)
+		handler := New(mockSvc, zap.NewNop().Sugar())
 		router := setupRouter()
 		router.POST("/users/setIsActive", handler.SetIsActive)
 
@@ -139,7 +140,7 @@ func TestHandler_SetIsActive(t *testing.T) {
 
 	t.Run("missing is_active field", func(t *testing.T) {
 		mockSvc := new(mockService)
-		handler := New(mockSvc)
+		handler := New(mockSvc, zap.NewNop().Sugar())
 		router := setupRouter()
 		router.POST("/users/setIsActive", handler.SetIsActive)
 
@@ -166,7 +167,7 @@ func TestHandler_SetIsActive(t *testing.T) {
 func TestHandler_GetReview(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		mockSvc := new(mockService)
-		handler := New(mockSvc)
+		handler := New(mockSvc, zap.NewNop().Sugar())
 		router := setupRouter()
 		router.GET("/users/getReview", handler.GetReview)
 
@@ -201,7 +202,7 @@ func TestHandler_GetReview(t *testing.T) {
 
 	t.Run("missing user_id parameter", func(t *testing.T) {
 		mockSvc := new(mockService)
-		handler := New(mockSvc)
+		handler := New(mockSvc, zap.NewNop().Sugar())
 		router := setupRouter()
 		router.GET("/users/getReview", handler.GetReview)
 
@@ -220,7 +221,7 @@ func TestHandler_GetReview(t *testing.T) {
 
 	t.Run("user not found returns empty list", func(t *testing.T) {
 		mockSvc := new(mockService)
-		handler := New(mockSvc)
+		handler := New(mockSvc, zap.NewNop().Sugar())
 		router := setupRouter()
 		router.GET("/users/getReview", handler.GetReview)
 
@@ -247,7 +248,7 @@ func TestHandler_GetReview(t *testing.T) {
 
 	t.Run("empty list", func(t *testing.T) {
 		mockSvc := new(mockService)
-		handler := New(mockSvc)
+		handler := New(mockSvc, zap.NewNop().Sugar())
 		router := setupRouter()
 		router.GET("/users/getReview", handler.GetReview)
 
@@ -276,7 +277,7 @@ func TestHandler_GetReview(t *testing.T) {
 func TestHandler_EdgeCases(t *testing.T) {
 	t.Run("user_id with special characters", func(t *testing.T) {
 		mockSvc := new(mockService)
-		handler := New(mockSvc)
+		handler := New(mockSvc, zap.NewNop().Sugar())
 		router := setupRouter()
 		router.GET("/users/getReview", handler.GetReview)
 

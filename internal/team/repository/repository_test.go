@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
@@ -51,7 +52,7 @@ func TestRepository_Create(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := New(db)
+		repo := New(db, zap.NewNop().Sugar())
 
 		team, err := repo.Create(ctx, "payments")
 
@@ -67,7 +68,7 @@ func TestRepository_Create(t *testing.T) {
 
 	t.Run("duplicate team name", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := New(db)
+		repo := New(db, zap.NewNop().Sugar())
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "payments")
 
 		team, err := repo.Create(ctx, "payments")
@@ -78,7 +79,7 @@ func TestRepository_Create(t *testing.T) {
 
 	t.Run("team name with special characters", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := New(db)
+		repo := New(db, zap.NewNop().Sugar())
 
 		team, err := repo.Create(ctx, "team-with-special_chars.123")
 
@@ -92,7 +93,7 @@ func TestRepository_GetByName(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := New(db)
+		repo := New(db, zap.NewNop().Sugar())
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
 
 		team, err := repo.GetByName(ctx, "backend")
@@ -103,7 +104,7 @@ func TestRepository_GetByName(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := New(db)
+		repo := New(db, zap.NewNop().Sugar())
 
 		team, err := repo.GetByName(ctx, "nonexistent")
 
@@ -117,7 +118,7 @@ func TestRepository_CreateOrUpdateUser(t *testing.T) {
 
 	t.Run("create new user", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := New(db)
+		repo := New(db, zap.NewNop().Sugar())
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
 
 		user, err := repo.CreateOrUpdateUser(ctx, "backend", "u1", "Alice", true)
@@ -136,7 +137,7 @@ func TestRepository_CreateOrUpdateUser(t *testing.T) {
 
 	t.Run("update existing user", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := New(db)
+		repo := New(db, zap.NewNop().Sugar())
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
 		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
 			"u1", "Alice", "backend", true)
@@ -157,7 +158,7 @@ func TestRepository_CreateOrUpdateUser(t *testing.T) {
 
 	t.Run("update user team", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := New(db)
+		repo := New(db, zap.NewNop().Sugar())
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "frontend")
 		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
@@ -180,7 +181,7 @@ func TestRepository_GetTeamMembers(t *testing.T) {
 
 	t.Run("empty team", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := New(db)
+		repo := New(db, zap.NewNop().Sugar())
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
 
 		members, err := repo.GetTeamMembers(ctx, "backend")
@@ -191,7 +192,7 @@ func TestRepository_GetTeamMembers(t *testing.T) {
 
 	t.Run("multiple members sorted by user_id", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := New(db)
+		repo := New(db, zap.NewNop().Sugar())
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
 		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
 			"u3", "Charlie", "backend", false)
@@ -217,7 +218,7 @@ func TestRepository_GetTeamMembers(t *testing.T) {
 
 	t.Run("non-existent team returns empty list", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := New(db)
+		repo := New(db, zap.NewNop().Sugar())
 
 		members, err := repo.GetTeamMembers(ctx, "nonexistent")
 
@@ -227,7 +228,7 @@ func TestRepository_GetTeamMembers(t *testing.T) {
 
 	t.Run("filters by team correctly", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := New(db)
+		repo := New(db, zap.NewNop().Sugar())
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "frontend")
 		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
@@ -248,7 +249,7 @@ func TestRepository_EdgeCases(t *testing.T) {
 
 	t.Run("team name with max length (255 chars)", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := New(db)
+		repo := New(db, zap.NewNop().Sugar())
 		longTeamName := ""
 		for i := 0; i < 255; i++ {
 			longTeamName += "a"
@@ -262,7 +263,7 @@ func TestRepository_EdgeCases(t *testing.T) {
 
 	t.Run("team name with unicode characters", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := New(db)
+		repo := New(db, zap.NewNop().Sugar())
 		unicodeTeamName := "команда_開発_🚀"
 
 		team, err := repo.Create(ctx, unicodeTeamName)
@@ -273,7 +274,7 @@ func TestRepository_EdgeCases(t *testing.T) {
 
 	t.Run("user_id with SQL special characters", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := New(db)
+		repo := New(db, zap.NewNop().Sugar())
 		specialUserID := "user'; DROP TABLE users; --"
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
 

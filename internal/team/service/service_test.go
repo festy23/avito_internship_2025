@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
@@ -89,7 +90,7 @@ func TestService_AddTeam(t *testing.T) {
 	t.Run("empty team name", func(t *testing.T) {
 		db := setupTestDB(t)
 		mockRepo := new(mockRepository)
-		svc := New(mockRepo, db)
+		svc := New(mockRepo, db, zap.NewNop().Sugar())
 
 		req := &teamModel.AddTeamRequest{
 			TeamName: "",
@@ -107,7 +108,7 @@ func TestService_AddTeam(t *testing.T) {
 	t.Run("empty members list", func(t *testing.T) {
 		db := setupTestDB(t)
 		mockRepo := new(mockRepository)
-		svc := New(mockRepo, db)
+		svc := New(mockRepo, db, zap.NewNop().Sugar())
 
 		req := &teamModel.AddTeamRequest{
 			TeamName: "backend",
@@ -126,8 +127,8 @@ func TestService_AddTeam_Integration(t *testing.T) {
 
 	t.Run("success with multiple members", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := repository.New(db)
-		svc := New(repo, db)
+		repo := repository.New(db, zap.NewNop().Sugar())
+		svc := New(repo, db, zap.NewNop().Sugar())
 
 		req := &teamModel.AddTeamRequest{
 			TeamName: "backend",
@@ -152,8 +153,8 @@ func TestService_AddTeam_Integration(t *testing.T) {
 
 	t.Run("duplicate team returns error", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := repository.New(db)
-		svc := New(repo, db)
+		repo := repository.New(db, zap.NewNop().Sugar())
+		svc := New(repo, db, zap.NewNop().Sugar())
 
 		// Pre-create team
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
@@ -173,8 +174,8 @@ func TestService_AddTeam_Integration(t *testing.T) {
 
 	t.Run("skip members with empty user_id", func(t *testing.T) {
 		db := setupTestDB(t)
-		repo := repository.New(db)
-		svc := New(repo, db)
+		repo := repository.New(db, zap.NewNop().Sugar())
+		svc := New(repo, db, zap.NewNop().Sugar())
 
 		req := &teamModel.AddTeamRequest{
 			TeamName: "backend",
@@ -209,7 +210,7 @@ func TestService_GetTeam(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		db := setupTestDB(t)
 		mockRepo := new(mockRepository)
-		svc := New(mockRepo, db)
+		svc := New(mockRepo, db, zap.NewNop().Sugar())
 
 		team := &teamModel.Team{TeamName: "backend"}
 		members := []teamModel.TeamMember{
@@ -233,7 +234,7 @@ func TestService_GetTeam(t *testing.T) {
 	t.Run("empty team name", func(t *testing.T) {
 		db := setupTestDB(t)
 		mockRepo := new(mockRepository)
-		svc := New(mockRepo, db)
+		svc := New(mockRepo, db, zap.NewNop().Sugar())
 
 		resp, err := svc.GetTeam(ctx, "")
 
@@ -244,7 +245,7 @@ func TestService_GetTeam(t *testing.T) {
 	t.Run("team not found", func(t *testing.T) {
 		db := setupTestDB(t)
 		mockRepo := new(mockRepository)
-		svc := New(mockRepo, db)
+		svc := New(mockRepo, db, zap.NewNop().Sugar())
 
 		mockRepo.On("GetByName", ctx, "nonexistent").Return(nil, teamModel.ErrTeamNotFound)
 
@@ -258,7 +259,7 @@ func TestService_GetTeam(t *testing.T) {
 	t.Run("team with no members", func(t *testing.T) {
 		db := setupTestDB(t)
 		mockRepo := new(mockRepository)
-		svc := New(mockRepo, db)
+		svc := New(mockRepo, db, zap.NewNop().Sugar())
 
 		team := &teamModel.Team{TeamName: "backend"}
 		members := []teamModel.TeamMember{}
@@ -277,7 +278,7 @@ func TestService_GetTeam(t *testing.T) {
 	t.Run("repository error on GetTeamMembers", func(t *testing.T) {
 		db := setupTestDB(t)
 		mockRepo := new(mockRepository)
-		svc := New(mockRepo, db)
+		svc := New(mockRepo, db, zap.NewNop().Sugar())
 
 		team := &teamModel.Team{TeamName: "backend"}
 		dbError := errors.New("database error")

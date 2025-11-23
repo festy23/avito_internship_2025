@@ -6,6 +6,7 @@ import (
 	"errors"
 	"time"
 
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 
 	pullrequestModel "github.com/festy23/avito_internship/internal/pullrequest/model"
@@ -47,12 +48,13 @@ type Repository interface {
 }
 
 type repository struct {
-	db *gorm.DB
+	db     *gorm.DB
+	logger *zap.SugaredLogger
 }
 
 // New creates a new pullrequest repository instance.
-func New(db *gorm.DB) Repository {
-	return &repository{db: db}
+func New(db *gorm.DB, logger *zap.SugaredLogger) Repository {
+	return &repository{db: db, logger: logger}
 }
 
 // Create creates a new pull request.
@@ -60,6 +62,8 @@ func (r *repository) Create(
 	ctx context.Context,
 	prID, prName, authorID string,
 ) (*pullrequestModel.PullRequest, error) {
+	r.logger.Infow("Creating pull request", "pull_request_id", prID, "author_id", authorID)
+
 	now := time.Now()
 	pr := &pullrequestModel.PullRequest{
 		PullRequestID:   prID,
@@ -74,11 +78,14 @@ func (r *repository) Create(
 	if err != nil {
 		// Check for unique constraint violation
 		if errors.Is(err, gorm.ErrDuplicatedKey) || isDuplicateError(err) {
+			r.logger.Debugw("Create pull request duplicate key", "pull_request_id", prID)
 			return nil, pullrequestModel.ErrPullRequestExists
 		}
+		r.logger.Errorw("Failed to create pull request", "pull_request_id", prID, "error", err)
 		return nil, err
 	}
 
+	r.logger.Infow("Pull request created", "pull_request_id", prID, "author_id", authorID)
 	return pr, nil
 }
 
@@ -112,6 +119,8 @@ func (r *repository) GetByID(
 	ctx context.Context,
 	prID string,
 ) (*pullrequestModel.PullRequest, error) {
+	r.logger.Debugw("GetByID called", "pull_request_id", prID)
+
 	var pr pullrequestModel.PullRequest
 	err := r.db.WithContext(ctx).
 		Where("pull_request_id = ?", prID).
@@ -119,8 +128,10 @@ func (r *repository) GetByID(
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			r.logger.Debugw("GetByID pull request not found", "pull_request_id", prID)
 			return nil, pullrequestModel.ErrPullRequestNotFound
 		}
+		r.logger.Errorw("GetByID database error", "pull_request_id", prID, "error", err)
 		return nil, err
 	}
 
@@ -134,6 +145,8 @@ func (r *repository) UpdateStatus(
 	status string,
 	mergedAt *time.Time,
 ) error {
+	r.logger.Infow("UpdateStatus called", "pull_request_id", prID, "new_status", status)
+
 	updates := map[string]interface{}{
 		"status": status,
 	}
@@ -150,13 +163,16 @@ func (r *repository) UpdateStatus(
 		Updates(updates)
 
 	if result.Error != nil {
+		r.logger.Errorw("UpdateStatus database error", "pull_request_id", prID, "error", result.Error)
 		return result.Error
 	}
 
 	if result.RowsAffected == 0 {
+		r.logger.Debugw("UpdateStatus pull request not found", "pull_request_id", prID)
 		return pullrequestModel.ErrPullRequestNotFound
 	}
 
+	r.logger.Infow("UpdateStatus completed", "pull_request_id", prID, "new_status", status)
 	return nil
 }
 
@@ -164,19 +180,24 @@ func (r *repository) UpdateStatus(
 // Checks max reviewers limit (2) before assignment.
 // Note: In production with PostgreSQL, this is enforced by database trigger.
 func (r *repository) AssignReviewer(ctx context.Context, prID, userID string) error {
+	r.logger.Infow("AssignReviewer called", "pull_request_id", prID, "user_id", userID)
+
 	// Check current reviewer count to enforce max 2 reviewers limit
 	// This is needed for SQLite compatibility (PostgreSQL uses trigger)
 	reviewers, countErr := r.GetReviewers(ctx, prID)
 	if countErr != nil {
+		r.logger.Errorw("AssignReviewer failed to get reviewers", "pull_request_id", prID, "error", countErr)
 		return countErr
 	}
 	// Check for duplicate reviewer
 	for _, reviewerID := range reviewers {
 		if reviewerID == userID {
+			r.logger.Debugw("AssignReviewer duplicate reviewer", "pull_request_id", prID, "user_id", userID)
 			return pullrequestModel.ErrReviewerAlreadyAssigned
 		}
 	}
 	if len(reviewers) >= 2 {
+		r.logger.Debugw("AssignReviewer max reviewers exceeded", "pull_request_id", prID, "current_count", len(reviewers))
 		return pullrequestModel.ErrMaxReviewersExceeded
 	}
 
@@ -190,41 +211,53 @@ func (r *repository) AssignReviewer(ctx context.Context, prID, userID string) er
 	if err != nil {
 		// Check for unique constraint violation (same reviewer already assigned)
 		if errors.Is(err, gorm.ErrDuplicatedKey) || isDuplicateError(err) {
+			r.logger.Debugw("AssignReviewer duplicate key constraint", "pull_request_id", prID, "user_id", userID)
 			return pullrequestModel.ErrReviewerAlreadyAssigned
 		}
 		// Check for max reviewers constraint from trigger (atomic protection)
 		if err.Error() != "" && contains(err.Error(), "Maximum 2 reviewers") {
+			r.logger.Debugw("AssignReviewer max reviewers constraint", "pull_request_id", prID)
 			return pullrequestModel.ErrMaxReviewersExceeded
 		}
 		// Check for author constraint from trigger
 		if err.Error() != "" && contains(err.Error(), "Author cannot be assigned") {
+			r.logger.Debugw("AssignReviewer author constraint", "pull_request_id", prID, "user_id", userID)
 			return pullrequestModel.ErrAuthorCannotBeReviewer
 		}
+		r.logger.Errorw("AssignReviewer database error", "pull_request_id", prID, "user_id", userID, "error", err)
 		return err
 	}
 
+	r.logger.Infow("AssignReviewer completed", "pull_request_id", prID, "user_id", userID)
 	return nil
 }
 
 // RemoveReviewer removes a reviewer from a pull request.
 func (r *repository) RemoveReviewer(ctx context.Context, prID, userID string) error {
+	r.logger.Infow("RemoveReviewer called", "pull_request_id", prID, "user_id", userID)
+
 	result := r.db.WithContext(ctx).
 		Where("pull_request_id = ? AND user_id = ?", prID, userID).
 		Delete(&pullrequestModel.PullRequestReviewer{})
 
 	if result.Error != nil {
+		r.logger.Errorw("RemoveReviewer database error", "pull_request_id", prID, "user_id", userID, "error", result.Error)
 		return result.Error
 	}
 
 	if result.RowsAffected == 0 {
+		r.logger.Debugw("RemoveReviewer reviewer not assigned", "pull_request_id", prID, "user_id", userID)
 		return pullrequestModel.ErrReviewerNotAssigned
 	}
 
+	r.logger.Infow("RemoveReviewer completed", "pull_request_id", prID, "user_id", userID)
 	return nil
 }
 
 // GetReviewers returns list of user_id reviewers for a pull request.
 func (r *repository) GetReviewers(ctx context.Context, prID string) ([]string, error) {
+	r.logger.Debugw("GetReviewers called", "pull_request_id", prID)
+
 	var reviewers []pullrequestModel.PullRequestReviewer
 	err := r.db.WithContext(ctx).
 		Where("pull_request_id = ?", prID).
@@ -232,6 +265,7 @@ func (r *repository) GetReviewers(ctx context.Context, prID string) ([]string, e
 		Find(&reviewers).Error
 
 	if err != nil {
+		r.logger.Errorw("GetReviewers database error", "pull_request_id", prID, "error", err)
 		return nil, err
 	}
 
@@ -241,9 +275,10 @@ func (r *repository) GetReviewers(ctx context.Context, prID string) ([]string, e
 	}
 
 	if userIDs == nil {
-		return []string{}, nil
+		userIDs = []string{}
 	}
 
+	r.logger.Debugw("GetReviewers completed", "pull_request_id", prID, "reviewer_count", len(userIDs))
 	return userIDs, nil
 }
 
@@ -253,6 +288,8 @@ func (r *repository) GetActiveTeamMembers(
 	teamName string,
 	excludeUserID string,
 ) ([]userModel.User, error) {
+	r.logger.Debugw("GetActiveTeamMembers called", "team_name", teamName, "exclude_user_id", excludeUserID)
+
 	var users []userModel.User
 	query := r.db.WithContext(ctx).
 		Where("team_name = ? AND is_active = ?", teamName, true)
@@ -264,18 +301,22 @@ func (r *repository) GetActiveTeamMembers(
 	err := query.Order("user_id ASC").Find(&users).Error
 
 	if err != nil {
+		r.logger.Errorw("GetActiveTeamMembers database error", "team_name", teamName, "error", err)
 		return nil, err
 	}
 
 	if users == nil {
-		return []userModel.User{}, nil
+		users = []userModel.User{}
 	}
 
+	r.logger.Debugw("GetActiveTeamMembers completed", "team_name", teamName, "member_count", len(users))
 	return users, nil
 }
 
 // GetUserTeam returns team name for a user.
 func (r *repository) GetUserTeam(ctx context.Context, userID string) (string, error) {
+	r.logger.Debugw("GetUserTeam called", "user_id", userID)
+
 	var user userModel.User
 	err := r.db.WithContext(ctx).
 		Where("user_id = ?", userID).
@@ -283,10 +324,13 @@ func (r *repository) GetUserTeam(ctx context.Context, userID string) (string, er
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			r.logger.Debugw("GetUserTeam user not found", "user_id", userID)
 			return "", pullrequestModel.ErrAuthorNotFound
 		}
+		r.logger.Errorw("GetUserTeam database error", "user_id", userID, "error", err)
 		return "", err
 	}
 
+	r.logger.Debugw("GetUserTeam completed", "user_id", userID, "team_name", user.TeamName)
 	return user.TeamName, nil
 }

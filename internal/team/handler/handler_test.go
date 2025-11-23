@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 
 	teamModel "github.com/festy23/avito_internship/internal/team/model"
 	"github.com/festy23/avito_internship/internal/team/service"
@@ -48,7 +49,7 @@ func setupRouter() *gin.Engine {
 func TestHandler_AddTeam(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		mockSvc := new(mockService)
-		handler := New(mockSvc)
+		handler := New(mockSvc, zap.NewNop().Sugar())
 		router := setupRouter()
 		router.POST("/team/add", handler.AddTeam)
 
@@ -86,7 +87,7 @@ func TestHandler_AddTeam(t *testing.T) {
 
 	t.Run("duplicate team", func(t *testing.T) {
 		mockSvc := new(mockService)
-		handler := New(mockSvc)
+		handler := New(mockSvc, zap.NewNop().Sugar())
 		router := setupRouter()
 		router.POST("/team/add", handler.AddTeam)
 
@@ -116,7 +117,7 @@ func TestHandler_AddTeam(t *testing.T) {
 
 	t.Run("invalid request body", func(t *testing.T) {
 		mockSvc := new(mockService)
-		handler := New(mockSvc)
+		handler := New(mockSvc, zap.NewNop().Sugar())
 		router := setupRouter()
 		router.POST("/team/add", handler.AddTeam)
 
@@ -134,7 +135,7 @@ func TestHandler_AddTeam(t *testing.T) {
 
 	t.Run("empty team name", func(t *testing.T) {
 		mockSvc := new(mockService)
-		handler := New(mockSvc)
+		handler := New(mockSvc, zap.NewNop().Sugar())
 		router := setupRouter()
 		router.POST("/team/add", handler.AddTeam)
 
@@ -162,7 +163,7 @@ func TestHandler_AddTeam(t *testing.T) {
 
 	t.Run("empty members", func(t *testing.T) {
 		mockSvc := new(mockService)
-		handler := New(mockSvc)
+		handler := New(mockSvc, zap.NewNop().Sugar())
 		router := setupRouter()
 		router.POST("/team/add", handler.AddTeam)
 
@@ -189,7 +190,7 @@ func TestHandler_AddTeam(t *testing.T) {
 
 	t.Run("internal error", func(t *testing.T) {
 		mockSvc := new(mockService)
-		handler := New(mockSvc)
+		handler := New(mockSvc, zap.NewNop().Sugar())
 		router := setupRouter()
 		router.POST("/team/add", handler.AddTeam)
 
@@ -220,7 +221,7 @@ func TestHandler_AddTeam(t *testing.T) {
 func TestHandler_GetTeam(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		mockSvc := new(mockService)
-		handler := New(mockSvc)
+		handler := New(mockSvc, zap.NewNop().Sugar())
 		router := setupRouter()
 		router.GET("/team/get", handler.GetTeam)
 
@@ -249,7 +250,7 @@ func TestHandler_GetTeam(t *testing.T) {
 
 	t.Run("team not found", func(t *testing.T) {
 		mockSvc := new(mockService)
-		handler := New(mockSvc)
+		handler := New(mockSvc, zap.NewNop().Sugar())
 		router := setupRouter()
 		router.GET("/team/get", handler.GetTeam)
 
@@ -270,7 +271,7 @@ func TestHandler_GetTeam(t *testing.T) {
 
 	t.Run("missing team_name parameter", func(t *testing.T) {
 		mockSvc := new(mockService)
-		handler := New(mockSvc)
+		handler := New(mockSvc, zap.NewNop().Sugar())
 		router := setupRouter()
 		router.GET("/team/get", handler.GetTeam)
 
@@ -287,7 +288,7 @@ func TestHandler_GetTeam(t *testing.T) {
 
 	t.Run("internal error", func(t *testing.T) {
 		mockSvc := new(mockService)
-		handler := New(mockSvc)
+		handler := New(mockSvc, zap.NewNop().Sugar())
 		router := setupRouter()
 		router.GET("/team/get", handler.GetTeam)
 
@@ -307,7 +308,7 @@ func TestHandler_GetTeam(t *testing.T) {
 
 	t.Run("empty team (no members)", func(t *testing.T) {
 		mockSvc := new(mockService)
-		handler := New(mockSvc)
+		handler := New(mockSvc, zap.NewNop().Sugar())
 		router := setupRouter()
 		router.GET("/team/get", handler.GetTeam)
 

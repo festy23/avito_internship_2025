@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
@@ -68,7 +69,7 @@ func TestIntegration_SetIsActive(t *testing.T) {
 	db := setupIntegrationDB(t)
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	RegisterRoutes(router, db)
+	RegisterRoutes(router, db, zap.NewNop().Sugar())
 
 	db.Exec("INSERT INTO teams (team_name) VALUES (?)", "team1")
 	db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
@@ -99,7 +100,7 @@ func TestIntegration_GetReview(t *testing.T) {
 	db := setupIntegrationDB(t)
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	RegisterRoutes(router, db)
+	RegisterRoutes(router, db, zap.NewNop().Sugar())
 
 	db.Exec("INSERT INTO teams (team_name) VALUES (?)", "team1")
 	db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",

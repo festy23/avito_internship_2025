@@ -14,6 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -74,7 +75,7 @@ func TestE2E_SetUserActive(t *testing.T) {
 	db := setupE2EDB(t)
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	userRouter.RegisterRoutes(router, db)
+	userRouter.RegisterRoutes(router, db, zap.NewNop().Sugar())
 
 	db.Exec("INSERT INTO teams (team_name) VALUES (?)", "team1")
 	db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
@@ -105,7 +106,7 @@ func TestE2E_SetUserInactive(t *testing.T) {
 	db := setupE2EDB(t)
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	userRouter.RegisterRoutes(router, db)
+	userRouter.RegisterRoutes(router, db, zap.NewNop().Sugar())
 
 	db.Exec("INSERT INTO teams (team_name) VALUES (?)", "team1")
 	db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
@@ -136,7 +137,7 @@ func TestE2E_GetReviewWithPRs(t *testing.T) {
 	db := setupE2EDB(t)
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	userRouter.RegisterRoutes(router, db)
+	userRouter.RegisterRoutes(router, db, zap.NewNop().Sugar())
 
 	db.Exec("INSERT INTO teams (team_name) VALUES (?)", "team1")
 	db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
@@ -171,7 +172,7 @@ func TestE2E_GetReviewWithoutPRs(t *testing.T) {
 	db := setupE2EDB(t)
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	userRouter.RegisterRoutes(router, db)
+	userRouter.RegisterRoutes(router, db, zap.NewNop().Sugar())
 
 	db.Exec("INSERT INTO teams (team_name) VALUES (?)", "team1")
 	db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
@@ -194,7 +195,7 @@ func TestE2E_GetReviewUserNotFound(t *testing.T) {
 	db := setupE2EDB(t)
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	userRouter.RegisterRoutes(router, db)
+	userRouter.RegisterRoutes(router, db, zap.NewNop().Sugar())
 
 	req := httptest.NewRequest(http.MethodGet, "/users/getReview?user_id=nonexistent", nil)
 	w := httptest.NewRecorder()

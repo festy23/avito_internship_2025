@@ -21,11 +21,16 @@ RETURNS TRIGGER AS $$
 DECLARE
     reviewer_count INTEGER;
 BEGIN
-    -- Lock rows to prevent race condition
-    SELECT COUNT(*) INTO reviewer_count
-    FROM pull_request_reviewers
+    -- Lock existing rows to prevent race condition, then count
+    -- FOR UPDATE must be on a row-level SELECT, not on COUNT
+    PERFORM 1 FROM pull_request_reviewers
     WHERE pull_request_id = NEW.pull_request_id
     FOR UPDATE;
+    
+    -- Now count after locking
+    SELECT COUNT(*) INTO reviewer_count
+    FROM pull_request_reviewers
+    WHERE pull_request_id = NEW.pull_request_id;
     
     IF reviewer_count >= 2 THEN
         RAISE EXCEPTION 'Maximum 2 reviewers allowed per pull request';

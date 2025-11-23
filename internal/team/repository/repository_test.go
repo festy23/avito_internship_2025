@@ -288,4 +288,138 @@ func TestRepository_EdgeCases(t *testing.T) {
 		db.Table("users").Count(&count)
 		assert.Equal(t, int64(1), count)
 	})
+
+	t.Run("update existing user", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u1", "OldName", "backend", true)
+
+		user, err := repo.CreateOrUpdateUser(ctx, "backend", "u1", "NewName", false)
+		require.NoError(t, err)
+		assert.Equal(t, "u1", user.UserID)
+		assert.Equal(t, "NewName", user.Username)
+		assert.False(t, user.IsActive)
+	})
+
+	t.Run("update user team", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
+		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "frontend")
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u1", "Alice", "backend", true)
+
+		user, err := repo.CreateOrUpdateUser(ctx, "frontend", "u1", "Alice", true)
+		require.NoError(t, err)
+		assert.Equal(t, "frontend", user.TeamName)
+	})
+
+	t.Run("database error on insert", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+		sqlDB, _ := db.DB()
+		sqlDB.Close()
+
+		user, err := repo.CreateOrUpdateUser(ctx, "backend", "u1", "Alice", true)
+		assert.Nil(t, user)
+		assert.Error(t, err)
+	})
+
+	t.Run("database error on fetch", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
+		// Create user but then close DB before fetch
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u1", "Alice", "backend", true)
+		sqlDB, _ := db.DB()
+		sqlDB.Close()
+
+		user, err := repo.CreateOrUpdateUser(ctx, "backend", "u1", "Updated", true)
+		assert.Nil(t, user)
+		assert.Error(t, err)
+	})
+}
+
+func TestRepository_GetTeamMembers_Extended(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("team with many members", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
+		for i := 1; i <= 10; i++ {
+			db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+				"u"+string(rune(i)), "User"+string(rune(i)), "backend", true)
+		}
+
+		members, err := repo.GetTeamMembers(ctx, "backend")
+		require.NoError(t, err)
+		assert.Len(t, members, 10)
+	})
+
+	t.Run("database error", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+		sqlDB, _ := db.DB()
+		sqlDB.Close()
+
+		members, err := repo.GetTeamMembers(ctx, "backend")
+		assert.Nil(t, members)
+		assert.Error(t, err)
+	})
+}
+
+func TestRepository_isDuplicateError_Extended(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("duplicate error with UNIQUE constraint message", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+
+		_, err1 := repo.Create(ctx, "backend")
+		require.NoError(t, err1)
+
+		_, err2 := repo.Create(ctx, "backend")
+		assert.Error(t, err2)
+		assert.ErrorIs(t, err2, teamModel.ErrTeamExists)
+	})
+
+	t.Run("duplicate error with gorm.ErrDuplicatedKey", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+
+		_, err1 := repo.Create(ctx, "frontend")
+		require.NoError(t, err1)
+
+		_, err2 := repo.Create(ctx, "frontend")
+		assert.Error(t, err2)
+		assert.ErrorIs(t, err2, teamModel.ErrTeamExists)
+	})
+
+	t.Run("non-duplicate error should not be detected", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+
+		_, err := repo.Create(ctx, "new-team")
+		assert.NoError(t, err)
+	})
+
+	t.Run("multiple duplicate attempts", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+
+		_, err1 := repo.Create(ctx, "test-team")
+		require.NoError(t, err1)
+
+		_, err2 := repo.Create(ctx, "test-team")
+		assert.Error(t, err2)
+		assert.ErrorIs(t, err2, teamModel.ErrTeamExists)
+
+		_, err3 := repo.Create(ctx, "test-team")
+		assert.Error(t, err3)
+		assert.ErrorIs(t, err3, teamModel.ErrTeamExists)
+	})
 }

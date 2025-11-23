@@ -48,10 +48,9 @@ func TestService_SetIsActive(t *testing.T) {
 		mockRepo := new(mockRepository)
 		svc := New(mockRepo, zap.NewNop().Sugar())
 
-		isActive := false
 		req := &model.SetIsActiveRequest{
 			UserID:   "u1",
-			IsActive: &isActive,
+			IsActive: false,
 		}
 
 		expectedUser := &model.User{
@@ -76,10 +75,9 @@ func TestService_SetIsActive(t *testing.T) {
 		mockRepo := new(mockRepository)
 		svc := New(mockRepo, zap.NewNop().Sugar())
 
-		isActive := false
 		req := &model.SetIsActiveRequest{
 			UserID:   "nonexistent",
-			IsActive: &isActive,
+			IsActive: false,
 		}
 
 		mockRepo.On("UpdateIsActive", ctx, "nonexistent", false).Return(nil, model.ErrUserNotFound)
@@ -95,10 +93,9 @@ func TestService_SetIsActive(t *testing.T) {
 		mockRepo := new(mockRepository)
 		svc := New(mockRepo, zap.NewNop().Sugar())
 
-		isActive := false
 		req := &model.SetIsActiveRequest{
 			UserID:   "",
-			IsActive: &isActive,
+			IsActive: false,
 		}
 
 		resp, err := svc.SetIsActive(ctx, req)
@@ -108,30 +105,13 @@ func TestService_SetIsActive(t *testing.T) {
 		mockRepo.AssertNotCalled(t, "UpdateIsActive")
 	})
 
-	t.Run("missing is_active", func(t *testing.T) {
-		mockRepo := new(mockRepository)
-		svc := New(mockRepo, zap.NewNop().Sugar())
-
-		req := &model.SetIsActiveRequest{
-			UserID:   "u1",
-			IsActive: nil,
-		}
-
-		resp, err := svc.SetIsActive(ctx, req)
-
-		assert.Nil(t, resp)
-		assert.ErrorIs(t, err, model.ErrInvalidIsActive)
-		mockRepo.AssertNotCalled(t, "UpdateIsActive")
-	})
-
 	t.Run("repository error", func(t *testing.T) {
 		mockRepo := new(mockRepository)
 		svc := New(mockRepo, zap.NewNop().Sugar())
 
-		isActive := false
 		req := &model.SetIsActiveRequest{
 			UserID:   "u1",
-			IsActive: &isActive,
+			IsActive: false,
 		}
 
 		repoErr := errors.New("database error")

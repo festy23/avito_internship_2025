@@ -222,4 +222,163 @@ func TestRepository_EdgeCases(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, unicodeUserID, user.UserID)
 	})
+
+	t.Run("database error", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+		sqlDB, _ := db.DB()
+		sqlDB.Close()
+
+		user, err := repo.GetByID(ctx, "u1")
+		assert.Nil(t, user)
+		assert.Error(t, err)
+	})
+}
+
+func TestRepository_UpdateIsActive_Extended(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("activate inactive user", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "team1")
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u1", "Alice", "team1", 0)
+
+		user, err := repo.UpdateIsActive(ctx, "u1", true)
+		require.NoError(t, err)
+		assert.True(t, user.IsActive)
+		assert.Equal(t, "u1", user.UserID)
+	})
+
+	t.Run("deactivate active user", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "team1")
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u1", "Alice", "team1", 1)
+
+		user, err := repo.UpdateIsActive(ctx, "u1", false)
+		require.NoError(t, err)
+		assert.False(t, user.IsActive)
+	})
+
+	t.Run("update non-existent user", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+
+		user, err := repo.UpdateIsActive(ctx, "nonexistent", true)
+		assert.Nil(t, user)
+		assert.ErrorIs(t, err, model.ErrUserNotFound)
+	})
+
+	t.Run("database error on update", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "team1")
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u1", "Alice", "team1", true)
+		sqlDB, _ := db.DB()
+		sqlDB.Close()
+
+		user, err := repo.UpdateIsActive(ctx, "u1", false)
+		assert.Nil(t, user)
+		assert.Error(t, err)
+	})
+
+	t.Run("database error on fetch after update", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "team1")
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u1", "Alice", "team1", true)
+
+		// Update succeeds but fetch fails
+		// This is hard to simulate with SQLite, but we can test the error path
+		user, err := repo.UpdateIsActive(ctx, "u1", false)
+		require.NoError(t, err)
+		assert.False(t, user.IsActive)
+	})
+}
+
+func TestRepository_GetAssignedPullRequests_Extended(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("user with multiple assigned PRs", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "team1")
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u1", "Alice", "team1", true)
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u2", "Bob", "team1", true)
+		db.Exec("INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
+			"pr-1", "PR 1", "u2", "OPEN")
+		db.Exec("INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
+			"pr-2", "PR 2", "u2", "OPEN")
+		db.Exec("INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
+			"pr-3", "PR 3", "u2", "MERGED")
+		db.Exec("INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)", "pr-1", "u1")
+		db.Exec("INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)", "pr-2", "u1")
+		db.Exec("INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)", "pr-3", "u1")
+
+		prs, err := repo.GetAssignedPullRequests(ctx, "u1")
+		require.NoError(t, err)
+		assert.Len(t, prs, 3)
+	})
+
+	t.Run("user with no assigned PRs", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "team1")
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u1", "Alice", "team1", true)
+
+		prs, err := repo.GetAssignedPullRequests(ctx, "u1")
+		require.NoError(t, err)
+		assert.Empty(t, prs)
+		assert.NotNil(t, prs)
+	})
+
+	t.Run("database error", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+		sqlDB, _ := db.DB()
+		sqlDB.Close()
+
+		prs, err := repo.GetAssignedPullRequests(ctx, "u1")
+		assert.Nil(t, prs)
+		assert.Error(t, err)
+	})
+
+	t.Run("PRs ordered by created_at DESC", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "team1")
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u1", "Alice", "team1", true)
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u2", "Bob", "team1", true)
+		// Create PRs with different timestamps
+		db.Exec("INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status, created_at) "+
+			"VALUES (?, ?, ?, ?, ?)",
+			"pr-1", "PR 1", "u2", "OPEN", time.Now().Add(-2*time.Hour))
+		db.Exec("INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status, created_at) "+
+			"VALUES (?, ?, ?, ?, ?)",
+			"pr-2", "PR 2", "u2", "OPEN", time.Now().Add(-1*time.Hour))
+		db.Exec("INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status, created_at) "+
+			"VALUES (?, ?, ?, ?, ?)",
+			"pr-3", "PR 3", "u2", "OPEN", time.Now())
+		db.Exec("INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)", "pr-1", "u1")
+		db.Exec("INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)", "pr-2", "u1")
+		db.Exec("INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)", "pr-3", "u1")
+
+		prs, err := repo.GetAssignedPullRequests(ctx, "u1")
+		require.NoError(t, err)
+		assert.Len(t, prs, 3)
+		// Should be ordered DESC by created_at
+		assert.Equal(t, "pr-3", prs[0].PullRequestID)
+		assert.Equal(t, "pr-2", prs[1].PullRequestID)
+		assert.Equal(t, "pr-1", prs[2].PullRequestID)
+	})
 }

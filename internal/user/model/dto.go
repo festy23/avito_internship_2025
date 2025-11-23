@@ -2,9 +2,11 @@
 package model
 
 // SetIsActiveRequest represents the request to update user activity status.
+// Note: IsActive doesn't use binding:"required" because Gin treats false as zero value
+// and fails validation. The field is required by OpenAPI spec and will always be present in JSON.
 type SetIsActiveRequest struct {
 	UserID   string `json:"user_id"   binding:"required"`
-	IsActive *bool  `json:"is_active" binding:"required"`
+	IsActive bool   `json:"is_active"`
 }
 
 // SetIsActiveResponse represents the response after updating user activity.

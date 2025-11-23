@@ -4,9 +4,12 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/festy23/avito_internship/pkg/retry"
 )
 
 // setupEnvVars saves original env vars and sets new ones for testing.
@@ -283,4 +286,288 @@ func TestSanitizeError(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetEnvInt(t *testing.T) {
+	tests := []struct {
+		name         string
+		envKey       string
+		envValue     string
+		defaultValue int
+		expected     int
+	}{
+		{
+			name:         "env var set with valid int",
+			envKey:       "TEST_INT_VAR",
+			envValue:     "42",
+			defaultValue: 10,
+			expected:     42,
+		},
+		{
+			name:         "env var not set",
+			envKey:       "TEST_INT_VAR_NOT_SET",
+			envValue:     "",
+			defaultValue: 10,
+			expected:     10,
+		},
+		{
+			name:         "env var with invalid int",
+			envKey:       "TEST_INT_VAR_INVALID",
+			envValue:     "not-a-number",
+			defaultValue: 10,
+			expected:     10,
+		},
+		{
+			name:         "env var with negative int",
+			envKey:       "TEST_INT_VAR_NEGATIVE",
+			envValue:     "-5",
+			defaultValue: 10,
+			expected:     -5,
+		},
+		{
+			name:         "env var with zero",
+			envKey:       "TEST_INT_VAR_ZERO",
+			envValue:     "0",
+			defaultValue: 10,
+			expected:     0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			originalValue := os.Getenv(tt.envKey)
+			defer func() {
+				if originalValue != "" {
+					os.Setenv(tt.envKey, originalValue)
+				} else {
+					os.Unsetenv(tt.envKey)
+				}
+			}()
+
+			if tt.envValue != "" {
+				os.Setenv(tt.envKey, tt.envValue)
+			} else {
+				os.Unsetenv(tt.envKey)
+			}
+
+			result := getEnvInt(tt.envKey, tt.defaultValue)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestGetEnvDuration(t *testing.T) {
+	tests := []struct {
+		name         string
+		envKey       string
+		envValue     string
+		defaultValue time.Duration
+		expected     time.Duration
+	}{
+		{
+			name:         "env var set with valid duration",
+			envKey:       "TEST_DURATION_VAR",
+			envValue:     "5s",
+			defaultValue: 1 * time.Second,
+			expected:     5 * time.Second,
+		},
+		{
+			name:         "env var not set",
+			envKey:       "TEST_DURATION_VAR_NOT_SET",
+			envValue:     "",
+			defaultValue: 1 * time.Second,
+			expected:     1 * time.Second,
+		},
+		{
+			name:         "env var with invalid duration",
+			envKey:       "TEST_DURATION_VAR_INVALID",
+			envValue:     "not-a-duration",
+			defaultValue: 1 * time.Second,
+			expected:     1 * time.Second,
+		},
+		{
+			name:         "env var with minutes",
+			envKey:       "TEST_DURATION_VAR_MINUTES",
+			envValue:     "2m",
+			defaultValue: 1 * time.Second,
+			expected:     2 * time.Minute,
+		},
+		{
+			name:         "env var with milliseconds",
+			envKey:       "TEST_DURATION_VAR_MS",
+			envValue:     "500ms",
+			defaultValue: 1 * time.Second,
+			expected:     500 * time.Millisecond,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			originalValue := os.Getenv(tt.envKey)
+			defer func() {
+				if originalValue != "" {
+					os.Setenv(tt.envKey, originalValue)
+				} else {
+					os.Unsetenv(tt.envKey)
+				}
+			}()
+
+			if tt.envValue != "" {
+				os.Setenv(tt.envKey, tt.envValue)
+			} else {
+				os.Unsetenv(tt.envKey)
+			}
+
+			result := getEnvDuration(tt.envKey, tt.defaultValue)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestGetEnvFloat(t *testing.T) {
+	tests := []struct {
+		name         string
+		envKey       string
+		envValue     string
+		defaultValue float64
+		expected     float64
+	}{
+		{
+			name:         "env var set with valid float",
+			envKey:       "TEST_FLOAT_VAR",
+			envValue:     "3.14",
+			defaultValue: 1.0,
+			expected:     3.14,
+		},
+		{
+			name:         "env var not set",
+			envKey:       "TEST_FLOAT_VAR_NOT_SET",
+			envValue:     "",
+			defaultValue: 1.0,
+			expected:     1.0,
+		},
+		{
+			name:         "env var with invalid float",
+			envKey:       "TEST_FLOAT_VAR_INVALID",
+			envValue:     "not-a-float",
+			defaultValue: 1.0,
+			expected:     1.0,
+		},
+		{
+			name:         "env var with negative float",
+			envKey:       "TEST_FLOAT_VAR_NEGATIVE",
+			envValue:     "-2.5",
+			defaultValue: 1.0,
+			expected:     -2.5,
+		},
+		{
+			name:         "env var with zero",
+			envKey:       "TEST_FLOAT_VAR_ZERO",
+			envValue:     "0",
+			defaultValue: 1.0,
+			expected:     0.0,
+		},
+		{
+			name:         "env var with scientific notation",
+			envKey:       "TEST_FLOAT_VAR_SCIENTIFIC",
+			envValue:     "1.5e2",
+			defaultValue: 1.0,
+			expected:     150.0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			originalValue := os.Getenv(tt.envKey)
+			defer func() {
+				if originalValue != "" {
+					os.Setenv(tt.envKey, originalValue)
+				} else {
+					os.Unsetenv(tt.envKey)
+				}
+			}()
+
+			if tt.envValue != "" {
+				os.Setenv(tt.envKey, tt.envValue)
+			} else {
+				os.Unsetenv(tt.envKey)
+			}
+
+			result := getEnvFloat(tt.envKey, tt.defaultValue)
+			assert.InDelta(t, tt.expected, result, 0.0001)
+		})
+	}
+}
+
+func TestLoadRetryConfigFromEnv(t *testing.T) {
+	t.Run("default values", func(t *testing.T) {
+		envVars := map[string]string{
+			"DB_RETRY_MAX_ATTEMPTS":  "",
+			"DB_RETRY_INITIAL_DELAY": "",
+			"DB_RETRY_MAX_DELAY":     "",
+			"DB_RETRY_MULTIPLIER":    "",
+		}
+		originalEnv := setupEnvVars(t, envVars)
+		defer restoreEnvVars(envVars, originalEnv)
+
+		cfg := LoadRetryConfigFromEnv()
+		defaultCfg := retry.PostgresConfig()
+		assert.Equal(t, defaultCfg.MaxAttempts, cfg.MaxAttempts)
+		assert.Equal(t, defaultCfg.InitialDelay, cfg.InitialDelay)
+		assert.Equal(t, defaultCfg.MaxDelay, cfg.MaxDelay)
+		assert.Equal(t, defaultCfg.Multiplier, cfg.Multiplier)
+	})
+
+	t.Run("custom values from env", func(t *testing.T) {
+		envVars := map[string]string{
+			"DB_RETRY_MAX_ATTEMPTS":  "10",
+			"DB_RETRY_INITIAL_DELAY": "2s",
+			"DB_RETRY_MAX_DELAY":     "30s",
+			"DB_RETRY_MULTIPLIER":    "2.5",
+		}
+		originalEnv := setupEnvVars(t, envVars)
+		defer restoreEnvVars(envVars, originalEnv)
+
+		cfg := LoadRetryConfigFromEnv()
+		assert.Equal(t, 10, cfg.MaxAttempts)
+		assert.Equal(t, 2*time.Second, cfg.InitialDelay)
+		assert.Equal(t, 30*time.Second, cfg.MaxDelay)
+		assert.InDelta(t, 2.5, cfg.Multiplier, 0.0001)
+	})
+
+	t.Run("partial override", func(t *testing.T) {
+		envVars := map[string]string{
+			"DB_RETRY_MAX_ATTEMPTS":  "5",
+			"DB_RETRY_INITIAL_DELAY": "",
+			"DB_RETRY_MAX_DELAY":     "",
+			"DB_RETRY_MULTIPLIER":    "",
+		}
+		originalEnv := setupEnvVars(t, envVars)
+		defer restoreEnvVars(envVars, originalEnv)
+
+		cfg := LoadRetryConfigFromEnv()
+		defaultCfg := retry.PostgresConfig()
+		assert.Equal(t, 5, cfg.MaxAttempts)
+		assert.Equal(t, defaultCfg.InitialDelay, cfg.InitialDelay)
+		assert.Equal(t, defaultCfg.MaxDelay, cfg.MaxDelay)
+		assert.Equal(t, defaultCfg.Multiplier, cfg.Multiplier)
+	})
+
+	t.Run("invalid values fallback to defaults", func(t *testing.T) {
+		envVars := map[string]string{
+			"DB_RETRY_MAX_ATTEMPTS":  "invalid",
+			"DB_RETRY_INITIAL_DELAY": "invalid",
+			"DB_RETRY_MAX_DELAY":     "invalid",
+			"DB_RETRY_MULTIPLIER":    "invalid",
+		}
+		originalEnv := setupEnvVars(t, envVars)
+		defer restoreEnvVars(envVars, originalEnv)
+
+		cfg := LoadRetryConfigFromEnv()
+		defaultCfg := retry.PostgresConfig()
+		assert.Equal(t, defaultCfg.MaxAttempts, cfg.MaxAttempts)
+		assert.Equal(t, defaultCfg.InitialDelay, cfg.InitialDelay)
+		assert.Equal(t, defaultCfg.MaxDelay, cfg.MaxDelay)
+		assert.Equal(t, defaultCfg.Multiplier, cfg.Multiplier)
+	})
 }

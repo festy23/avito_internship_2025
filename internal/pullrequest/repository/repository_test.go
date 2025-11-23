@@ -325,7 +325,76 @@ func TestRepository_AssignReviewer(t *testing.T) {
 		err := repo.AssignReviewer(ctx, "pr-1", "u2")
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "already assigned")
+		assert.ErrorIs(t, err, pullrequestModel.ErrReviewerAlreadyAssigned)
+	})
+
+	t.Run("assign second reviewer", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u1", "Alice", "backend", true)
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u2", "Bob", "backend", true)
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u3", "Charlie", "backend", true)
+		db.Exec(
+			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
+			"pr-1",
+			"Add feature",
+			"u1",
+			"OPEN",
+		)
+		db.Exec(
+			"INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)",
+			"pr-1",
+			"u2",
+		)
+
+		err := repo.AssignReviewer(ctx, "pr-1", "u3")
+		require.NoError(t, err)
+
+		reviewers, err := repo.GetReviewers(ctx, "pr-1")
+		require.NoError(t, err)
+		assert.Len(t, reviewers, 2)
+		assert.Contains(t, reviewers, "u2")
+		assert.Contains(t, reviewers, "u3")
+	})
+
+	t.Run("error getting reviewers count", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+		// Close DB to simulate error
+		sqlDB, _ := db.DB()
+		sqlDB.Close()
+
+		err := repo.AssignReviewer(ctx, "pr-1", "u2")
+		assert.Error(t, err)
+	})
+
+	// Note: Author cannot be reviewer check is enforced by PostgreSQL trigger
+	// This is tested in E2E tests with real PostgreSQL database
+
+	t.Run("database error on create", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u1", "Alice", "backend", true)
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u2", "Bob", "backend", true)
+		db.Exec(
+			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
+			"pr-1",
+			"Add feature",
+			"u1",
+			"OPEN",
+		)
+		sqlDB, _ := db.DB()
+		sqlDB.Close()
+
+		err := repo.AssignReviewer(ctx, "pr-1", "u2")
+		assert.Error(t, err)
 	})
 }
 
@@ -525,5 +594,300 @@ func TestRepository_GetUserTeam(t *testing.T) {
 
 		assert.Empty(t, teamName)
 		assert.ErrorIs(t, err, pullrequestModel.ErrAuthorNotFound)
+	})
+}
+
+// Extended tests to increase coverage to 85%+
+
+func TestRepository_Create_Extended(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("database error handling", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u1", "Alice", "backend", true)
+		// Close DB to simulate error
+		sqlDB, _ := db.DB()
+		sqlDB.Close()
+
+		pr, err := repo.Create(ctx, "pr-1", "Add feature", "u1")
+		assert.Nil(t, pr)
+		assert.Error(t, err)
+	})
+
+	t.Run("isDuplicateError with UNIQUE constraint", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u1", "Alice", "backend", true)
+		db.Exec(
+			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
+			"pr-1", "Existing", "u1", "OPEN",
+		)
+
+		pr, err := repo.Create(ctx, "pr-1", "Duplicate", "u1")
+		assert.Nil(t, pr)
+		assert.ErrorIs(t, err, pullrequestModel.ErrPullRequestExists)
+	})
+}
+
+func TestRepository_GetByID_Extended(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("database error", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+		sqlDB, _ := db.DB()
+		sqlDB.Close()
+
+		pr, err := repo.GetByID(ctx, "pr-1")
+		assert.Nil(t, pr)
+		assert.Error(t, err)
+	})
+
+	t.Run("get merged PR with merged_at", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u1", "Alice", "backend", true)
+		mergedAt := time.Now()
+		db.Exec(
+			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status, merged_at) "+
+				"VALUES (?, ?, ?, ?, ?)",
+			"pr-1", "Merged PR", "u1", "MERGED", mergedAt,
+		)
+
+		pr, err := repo.GetByID(ctx, "pr-1")
+		require.NoError(t, err)
+		assert.Equal(t, "MERGED", pr.Status)
+		require.NotNil(t, pr.MergedAt)
+	})
+}
+
+func TestRepository_UpdateStatus_Extended(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("update to OPEN status", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u1", "Alice", "backend", true)
+		db.Exec(
+			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
+			"pr-1", "Add feature", "u1", "OPEN",
+		)
+
+		err := repo.UpdateStatus(ctx, "pr-1", "OPEN", nil)
+		require.NoError(t, err)
+
+		var dbPR testPullRequest
+		db.Where("pull_request_id = ?", "pr-1").First(&dbPR)
+		assert.Equal(t, "OPEN", dbPR.Status)
+	})
+
+	t.Run("database error", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u1", "Alice", "backend", true)
+		db.Exec(
+			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
+			"pr-1", "Add feature", "u1", "OPEN",
+		)
+		sqlDB, _ := db.DB()
+		sqlDB.Close()
+
+		err := repo.UpdateStatus(ctx, "pr-1", "MERGED", nil)
+		assert.Error(t, err)
+	})
+}
+
+func TestRepository_AssignReviewer_Extended(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("assign when already at limit", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u1", "Alice", "backend", true)
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u2", "Bob", "backend", true)
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u3", "Charlie", "backend", true)
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u4", "David", "backend", true)
+		db.Exec(
+			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
+			"pr-1", "Add feature", "u1", "OPEN",
+		)
+		db.Exec("INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)", "pr-1", "u2")
+		db.Exec("INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)", "pr-1", "u3")
+
+		err := repo.AssignReviewer(ctx, "pr-1", "u4")
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, pullrequestModel.ErrMaxReviewersExceeded)
+	})
+
+	t.Run("duplicate reviewer via database constraint", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u1", "Alice", "backend", true)
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u2", "Bob", "backend", true)
+		db.Exec(
+			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
+			"pr-1", "Add feature", "u1", "OPEN",
+		)
+		// Create unique constraint manually
+		db.Exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_reviewer " +
+			"ON pull_request_reviewers(pull_request_id, user_id)")
+		db.Exec("INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)", "pr-1", "u2")
+
+		err := repo.AssignReviewer(ctx, "pr-1", "u2")
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, pullrequestModel.ErrReviewerAlreadyAssigned)
+	})
+}
+
+func TestRepository_RemoveReviewer_Extended(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("remove non-existent reviewer", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u1", "Alice", "backend", true)
+		db.Exec(
+			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
+			"pr-1", "Add feature", "u1", "OPEN",
+		)
+
+		// Removing non-existent reviewer returns error
+		err := repo.RemoveReviewer(ctx, "pr-1", "nonexistent")
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, pullrequestModel.ErrReviewerNotAssigned)
+	})
+
+	t.Run("database error", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u1", "Alice", "backend", true)
+		db.Exec(
+			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
+			"pr-1", "Add feature", "u1", "OPEN",
+		)
+		db.Exec("INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)", "pr-1", "u2")
+		sqlDB, _ := db.DB()
+		sqlDB.Close()
+
+		err := repo.RemoveReviewer(ctx, "pr-1", "u2")
+		assert.Error(t, err)
+	})
+}
+
+func TestRepository_GetReviewers_Extended(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("get reviewers for PR with multiple reviewers", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u1", "Alice", "backend", true)
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u2", "Bob", "backend", true)
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u3", "Charlie", "backend", true)
+		db.Exec(
+			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
+			"pr-1", "Add feature", "u1", "OPEN",
+		)
+		db.Exec("INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)", "pr-1", "u2")
+		db.Exec("INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)", "pr-1", "u3")
+
+		reviewers, err := repo.GetReviewers(ctx, "pr-1")
+		require.NoError(t, err)
+		assert.Len(t, reviewers, 2)
+		assert.Contains(t, reviewers, "u2")
+		assert.Contains(t, reviewers, "u3")
+	})
+
+	t.Run("get reviewers for non-existent PR", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+
+		reviewers, err := repo.GetReviewers(ctx, "nonexistent")
+		require.NoError(t, err)
+		assert.Empty(t, reviewers)
+	})
+
+	t.Run("database error", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+		sqlDB, _ := db.DB()
+		sqlDB.Close()
+
+		reviewers, err := repo.GetReviewers(ctx, "pr-1")
+		assert.Nil(t, reviewers)
+		assert.Error(t, err)
+	})
+}
+
+func TestRepository_GetActiveTeamMembers_Extended(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("get active members excluding multiple users", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u1", "Alice", "backend", 1)
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u2", "Bob", "backend", 1)
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u3", "Charlie", "backend", 1)
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u4", "David", "backend", 0)
+
+		members, err := repo.GetActiveTeamMembers(ctx, "backend", "u1")
+		require.NoError(t, err)
+		assert.Len(t, members, 2)
+		assert.NotContains(t, []string{members[0].UserID, members[1].UserID}, "u1")
+		assert.NotContains(t, []string{members[0].UserID, members[1].UserID}, "u4")
+	})
+
+	t.Run("team with no active members", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u1", "Alice", "backend", 0)
+
+		members, err := repo.GetActiveTeamMembers(ctx, "backend", "u1")
+		require.NoError(t, err)
+		assert.Empty(t, members)
+	})
+
+	t.Run("database error", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+		sqlDB, _ := db.DB()
+		sqlDB.Close()
+
+		members, err := repo.GetActiveTeamMembers(ctx, "backend", "u1")
+		assert.Nil(t, members)
+		assert.Error(t, err)
 	})
 }

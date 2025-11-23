@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 
 	teamModel "github.com/festy23/avito_internship/internal/team/model"
 	teamRouter "github.com/festy23/avito_internship/internal/team/router"
@@ -45,7 +46,10 @@ func (teamTestUser) TableName() string {
 }
 
 func teamSetupE2EDB(t *testing.T) *gorm.DB {
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	// Disable GORM logging in tests to reduce noise (expected "record not found" errors)
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
 	require.NoError(t, err)
 
 	type PullRequest struct {

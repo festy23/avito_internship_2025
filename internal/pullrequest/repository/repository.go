@@ -15,7 +15,10 @@ import (
 // Repository defines the interface for pullrequest data access operations.
 type Repository interface {
 	// Create creates a new pull request.
-	Create(ctx context.Context, prID, prName, authorID string) (*pullrequestModel.PullRequest, error)
+	Create(
+		ctx context.Context,
+		prID, prName, authorID string,
+	) (*pullrequestModel.PullRequest, error)
 
 	// GetByID finds pull request by pull_request_id.
 	GetByID(ctx context.Context, prID string) (*pullrequestModel.PullRequest, error)
@@ -33,7 +36,11 @@ type Repository interface {
 	GetReviewers(ctx context.Context, prID string) ([]string, error)
 
 	// GetActiveTeamMembers returns active team members excluding specified user.
-	GetActiveTeamMembers(ctx context.Context, teamName string, excludeUserID string) ([]userModel.User, error)
+	GetActiveTeamMembers(
+		ctx context.Context,
+		teamName string,
+		excludeUserID string,
+	) ([]userModel.User, error)
 
 	// GetUserTeam returns team name for a user.
 	GetUserTeam(ctx context.Context, userID string) (string, error)
@@ -49,7 +56,10 @@ func New(db *gorm.DB) Repository {
 }
 
 // Create creates a new pull request.
-func (r *repository) Create(ctx context.Context, prID, prName, authorID string) (*pullrequestModel.PullRequest, error) {
+func (r *repository) Create(
+	ctx context.Context,
+	prID, prName, authorID string,
+) (*pullrequestModel.PullRequest, error) {
 	now := time.Now()
 	pr := &pullrequestModel.PullRequest{
 		PullRequestID:   prID,
@@ -79,8 +89,7 @@ func isDuplicateError(err error) bool {
 	}
 	errStr := err.Error()
 	return errors.Is(err, gorm.ErrDuplicatedKey) ||
-		(errStr != "" && (
-			contains(errStr, "duplicate key") ||
+		(errStr != "" && (contains(errStr, "duplicate key") ||
 			contains(errStr, "UNIQUE constraint")))
 }
 
@@ -99,7 +108,10 @@ func findSubstring(s, substr string) bool {
 }
 
 // GetByID finds pull request by pull_request_id.
-func (r *repository) GetByID(ctx context.Context, prID string) (*pullrequestModel.PullRequest, error) {
+func (r *repository) GetByID(
+	ctx context.Context,
+	prID string,
+) (*pullrequestModel.PullRequest, error) {
 	var pr pullrequestModel.PullRequest
 	err := r.db.WithContext(ctx).
 		Where("pull_request_id = ?", prID).
@@ -116,7 +128,12 @@ func (r *repository) GetByID(ctx context.Context, prID string) (*pullrequestMode
 }
 
 // UpdateStatus updates pull request status and merged_at timestamp.
-func (r *repository) UpdateStatus(ctx context.Context, prID string, status string, mergedAt *time.Time) error {
+func (r *repository) UpdateStatus(
+	ctx context.Context,
+	prID string,
+	status string,
+	mergedAt *time.Time,
+) error {
 	updates := map[string]interface{}{
 		"status": status,
 	}
@@ -144,41 +161,44 @@ func (r *repository) UpdateStatus(ctx context.Context, prID string, status strin
 }
 
 // AssignReviewer assigns a reviewer to a pull request.
+// Checks max reviewers limit (2) before assignment.
+// Note: In production with PostgreSQL, this is enforced by database trigger.
 func (r *repository) AssignReviewer(ctx context.Context, prID, userID string) error {
-	// Check current reviewer count
-	var count int64
-	err := r.db.WithContext(ctx).
-		Model(&pullrequestModel.PullRequestReviewer{}).
-		Where("pull_request_id = ?", prID).
-		Count(&count).Error
-
-	if err != nil {
-		return err
+	// Check current reviewer count to enforce max 2 reviewers limit
+	// This is needed for SQLite compatibility (PostgreSQL uses trigger)
+	reviewers, countErr := r.GetReviewers(ctx, prID)
+	if countErr != nil {
+		return countErr
 	}
-
-	if count >= 2 {
+	// Check for duplicate reviewer
+	for _, reviewerID := range reviewers {
+		if reviewerID == userID {
+			return errors.New("reviewer already assigned to this pull request")
+		}
+	}
+	if len(reviewers) >= 2 {
 		return errors.New("maximum 2 reviewers allowed per pull request")
 	}
 
 	reviewer := &pullrequestModel.PullRequestReviewer{
 		PullRequestID: prID,
 		UserID:        userID,
-		AssignedAt:   time.Now(),
+		AssignedAt:    time.Now(),
 	}
 
-	err = r.db.WithContext(ctx).Create(reviewer).Error
+	err := r.db.WithContext(ctx).Create(reviewer).Error
 	if err != nil {
 		// Check for unique constraint violation (same reviewer already assigned)
 		if errors.Is(err, gorm.ErrDuplicatedKey) || isDuplicateError(err) {
 			return errors.New("reviewer already assigned to this pull request")
 		}
-		// Check for max reviewers constraint from trigger
+		// Check for max reviewers constraint from trigger (atomic protection)
 		if err.Error() != "" && contains(err.Error(), "Maximum 2 reviewers") {
-			return errors.New("maximum 2 reviewers allowed per pull request")
+			return pullrequestModel.ErrMaxReviewersExceeded
 		}
 		// Check for author constraint from trigger
 		if err.Error() != "" && contains(err.Error(), "Author cannot be assigned") {
-			return errors.New("author cannot be assigned as reviewer")
+			return pullrequestModel.ErrAuthorCannotBeReviewer
 		}
 		return err
 	}
@@ -228,7 +248,11 @@ func (r *repository) GetReviewers(ctx context.Context, prID string) ([]string, e
 }
 
 // GetActiveTeamMembers returns active team members excluding specified user.
-func (r *repository) GetActiveTeamMembers(ctx context.Context, teamName string, excludeUserID string) ([]userModel.User, error) {
+func (r *repository) GetActiveTeamMembers(
+	ctx context.Context,
+	teamName string,
+	excludeUserID string,
+) ([]userModel.User, error) {
 	var users []userModel.User
 	query := r.db.WithContext(ctx).
 		Where("team_name = ? AND is_active = ?", teamName, true)
@@ -266,4 +290,3 @@ func (r *repository) GetUserTeam(ctx context.Context, userID string) (string, er
 
 	return user.TeamName, nil
 }
-

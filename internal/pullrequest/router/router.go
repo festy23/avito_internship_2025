@@ -20,4 +20,3 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB) {
 	r.POST("/pullRequest/merge", h.MergePullRequest)
 	r.POST("/pullRequest/reassign", h.ReassignReviewer)
 }
-

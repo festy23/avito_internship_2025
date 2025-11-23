@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 
 	pullrequestModel "github.com/festy23/avito_internship/internal/pullrequest/model"
 	pullrequestRouter "github.com/festy23/avito_internship/internal/pullrequest/router"
@@ -72,11 +73,16 @@ func (prE2ETestPullRequestReviewer) TableName() string {
 }
 
 func prSetupE2EDB(t *testing.T) *gorm.DB {
-	// Use shared in-memory DB to ensure migrations/data are visible across connections
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	// Use unique in-memory DB for each test to avoid conflicts
+	// Use test name as part of the DB name to ensure uniqueness
+	dbName := ":memory:"
+	// Disable GORM logging in tests to reduce noise (expected "record not found" errors)
+	db, err := gorm.Open(sqlite.Open(dbName), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
 	require.NoError(t, err)
 
-	// Limit connection pool to 1 to ensure shared in-memory DB works correctly
+	// Limit connection pool to 1 to ensure in-memory DB works correctly
 	var sqlDB *sql.DB
 	sqlDB, err = db.DB()
 	require.NoError(t, err)
@@ -165,6 +171,8 @@ func TestE2E_PullRequestLifecycle(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		router.ServeHTTP(w, req)
 
+		assert.Equal(t, http.StatusCreated, w.Code, "team should be created successfully")
+
 		// Create PR
 		createPRReq := &pullrequestModel.CreatePullRequestRequest{
 			PullRequestID:   "pr-1",
@@ -222,6 +230,8 @@ func TestE2E_PullRequestLifecycle(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		router.ServeHTTP(w, req)
 
+		assert.Equal(t, http.StatusCreated, w.Code, "team should be created successfully")
+
 		// Create PR
 		createPRReq := &pullrequestModel.CreatePullRequestRequest{
 			PullRequestID:   "pr-1",
@@ -241,7 +251,8 @@ func TestE2E_PullRequestLifecycle(t *testing.T) {
 		err := json.Unmarshal(w.Body.Bytes(), &createResponse)
 		require.NoError(t, err)
 
-		// Get one of the assigned reviewers
+		// Get one of the assigned reviewers (must have at least one)
+		require.NotEmpty(t, createResponse["pr"].AssignedReviewers, "PR should have at least one reviewer assigned")
 		oldReviewer := createResponse["pr"].AssignedReviewers[0]
 
 		// Reassign reviewer
@@ -299,6 +310,8 @@ func TestE2E_PullRequestLifecycle(t *testing.T) {
 		req, _ := http.NewRequest("POST", "/team/add", bytes.NewBuffer(body))
 		req.Header.Set("Content-Type", "application/json")
 		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusCreated, w.Code, "team should be created successfully")
 
 		// Create PR
 		createPRReq := &pullrequestModel.CreatePullRequestRequest{
@@ -363,6 +376,8 @@ func TestE2E_PullRequestLifecycle(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		router.ServeHTTP(w, req)
 
+		assert.Equal(t, http.StatusCreated, w.Code, "team should be created successfully")
+
 		// Create PR
 		createPRReq := &pullrequestModel.CreatePullRequestRequest{
 			PullRequestID:   "pr-1",
@@ -414,6 +429,8 @@ func TestE2E_PullRequestLifecycle(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		router.ServeHTTP(w, req)
 
+		assert.Equal(t, http.StatusCreated, w.Code, "team should be created successfully")
+
 		// Create PR
 		createPRReq := &pullrequestModel.CreatePullRequestRequest{
 			PullRequestID:   "pr-1",
@@ -454,6 +471,8 @@ func TestE2E_PullRequestLifecycle(t *testing.T) {
 		req, _ := http.NewRequest("POST", "/team/add", bytes.NewBuffer(body))
 		req.Header.Set("Content-Type", "application/json")
 		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusCreated, w.Code, "team should be created successfully")
 
 		// Create PR
 		createPRReq := &pullrequestModel.CreatePullRequestRequest{
@@ -497,6 +516,8 @@ func TestE2E_PullRequestLifecycle(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		router.ServeHTTP(w, req)
 
+		assert.Equal(t, http.StatusCreated, w.Code, "team should be created successfully")
+
 		// Create PR
 		createPRReq := &pullrequestModel.CreatePullRequestRequest{
 			PullRequestID:   "pr-1",
@@ -538,4 +559,3 @@ type ErrorResponse struct {
 		Message string `json:"message"`
 	} `json:"error"`
 }
-

@@ -21,7 +21,10 @@ type mockService struct {
 	mock.Mock
 }
 
-func (m *mockService) CreatePullRequest(ctx context.Context, req *pullrequestModel.CreatePullRequestRequest) (*pullrequestModel.PullRequestResponse, error) {
+func (m *mockService) CreatePullRequest(
+	ctx context.Context,
+	req *pullrequestModel.CreatePullRequestRequest,
+) (*pullrequestModel.PullRequestResponse, error) {
 	args := m.Called(ctx, req)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -29,7 +32,10 @@ func (m *mockService) CreatePullRequest(ctx context.Context, req *pullrequestMod
 	return args.Get(0).(*pullrequestModel.PullRequestResponse), args.Error(1)
 }
 
-func (m *mockService) MergePullRequest(ctx context.Context, req *pullrequestModel.MergePullRequestRequest) (*pullrequestModel.PullRequestResponse, error) {
+func (m *mockService) MergePullRequest(
+	ctx context.Context,
+	req *pullrequestModel.MergePullRequestRequest,
+) (*pullrequestModel.PullRequestResponse, error) {
 	args := m.Called(ctx, req)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -37,7 +43,10 @@ func (m *mockService) MergePullRequest(ctx context.Context, req *pullrequestMode
 	return args.Get(0).(*pullrequestModel.PullRequestResponse), args.Error(1)
 }
 
-func (m *mockService) ReassignReviewer(ctx context.Context, req *pullrequestModel.ReassignReviewerRequest) (*pullrequestModel.ReassignReviewerResponse, error) {
+func (m *mockService) ReassignReviewer(
+	ctx context.Context,
+	req *pullrequestModel.ReassignReviewerRequest,
+) (*pullrequestModel.ReassignReviewerResponse, error) {
 	args := m.Called(ctx, req)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -101,7 +110,8 @@ func TestHandler_CreatePullRequest(t *testing.T) {
 			AuthorID:        "u1",
 		}
 
-		mockSvc.On("CreatePullRequest", mock.Anything, req).Return(nil, pullrequestModel.ErrPullRequestExists)
+		mockSvc.On("CreatePullRequest", mock.Anything, req).
+			Return(nil, pullrequestModel.ErrPullRequestExists)
 
 		body, _ := json.Marshal(req)
 		w := httptest.NewRecorder()
@@ -129,7 +139,8 @@ func TestHandler_CreatePullRequest(t *testing.T) {
 			AuthorID:        "nonexistent",
 		}
 
-		mockSvc.On("CreatePullRequest", mock.Anything, req).Return(nil, pullrequestModel.ErrAuthorNotFound)
+		mockSvc.On("CreatePullRequest", mock.Anything, req).
+			Return(nil, pullrequestModel.ErrAuthorNotFound)
 
 		body, _ := json.Marshal(req)
 		w := httptest.NewRecorder()
@@ -211,7 +222,8 @@ func TestHandler_MergePullRequest(t *testing.T) {
 			PullRequestID: "nonexistent",
 		}
 
-		mockSvc.On("MergePullRequest", mock.Anything, req).Return(nil, pullrequestModel.ErrPullRequestNotFound)
+		mockSvc.On("MergePullRequest", mock.Anything, req).
+			Return(nil, pullrequestModel.ErrPullRequestNotFound)
 
 		body, _ := json.Marshal(req)
 		w := httptest.NewRecorder()
@@ -298,7 +310,8 @@ func TestHandler_ReassignReviewer(t *testing.T) {
 			OldUserID:     "u2",
 		}
 
-		mockSvc.On("ReassignReviewer", mock.Anything, req).Return(nil, pullrequestModel.ErrPullRequestMerged)
+		mockSvc.On("ReassignReviewer", mock.Anything, req).
+			Return(nil, pullrequestModel.ErrPullRequestMerged)
 
 		body, _ := json.Marshal(req)
 		w := httptest.NewRecorder()
@@ -325,7 +338,8 @@ func TestHandler_ReassignReviewer(t *testing.T) {
 			OldUserID:     "u2",
 		}
 
-		mockSvc.On("ReassignReviewer", mock.Anything, req).Return(nil, pullrequestModel.ErrReviewerNotAssigned)
+		mockSvc.On("ReassignReviewer", mock.Anything, req).
+			Return(nil, pullrequestModel.ErrReviewerNotAssigned)
 
 		body, _ := json.Marshal(req)
 		w := httptest.NewRecorder()
@@ -352,7 +366,8 @@ func TestHandler_ReassignReviewer(t *testing.T) {
 			OldUserID:     "u2",
 		}
 
-		mockSvc.On("ReassignReviewer", mock.Anything, req).Return(nil, pullrequestModel.ErrNoCandidate)
+		mockSvc.On("ReassignReviewer", mock.Anything, req).
+			Return(nil, pullrequestModel.ErrNoCandidate)
 
 		body, _ := json.Marshal(req)
 		w := httptest.NewRecorder()
@@ -387,4 +402,3 @@ func TestHandler_ReassignReviewer(t *testing.T) {
 		assert.Equal(t, "INVALID_REQUEST", response.Error.Code)
 	})
 }
-

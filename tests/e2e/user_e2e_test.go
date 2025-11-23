@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 
 	"github.com/festy23/avito_internship/internal/user/model"
 	userRouter "github.com/festy23/avito_internship/internal/user/router"
@@ -35,7 +36,10 @@ func (testUser) TableName() string {
 }
 
 func setupE2EDB(t *testing.T) *gorm.DB {
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	// Disable GORM logging in tests to reduce noise (expected "record not found" errors)
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
 	require.NoError(t, err)
 
 	type Team struct {

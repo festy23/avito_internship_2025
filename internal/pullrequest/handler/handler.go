@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -52,7 +53,13 @@ func (h *Handler) CreatePullRequest(c *gin.Context) {
 			return
 		}
 		if errors.Is(err, pullrequestModel.ErrInvalidPullRequestID) {
-			errorResponse(c, "INVALID_REQUEST", "pull_request_id is required", http.StatusBadRequest)
+			errorResponse(c, "INVALID_REQUEST", err.Error(), http.StatusBadRequest)
+			return
+		}
+		// Check for validation errors (string length, required fields)
+		if err.Error() != "" &&
+			(strings.Contains(err.Error(), "pull_request_name") || strings.Contains(err.Error(), "required")) {
+			errorResponse(c, "INVALID_REQUEST", err.Error(), http.StatusBadRequest)
 			return
 		}
 		log.Printf("error creating pull request: %v", err)
@@ -90,7 +97,12 @@ func (h *Handler) MergePullRequest(c *gin.Context) {
 			return
 		}
 		if errors.Is(err, pullrequestModel.ErrInvalidPullRequestID) {
-			errorResponse(c, "INVALID_REQUEST", "pull_request_id is required", http.StatusBadRequest)
+			errorResponse(
+				c,
+				"INVALID_REQUEST",
+				"pull_request_id is required",
+				http.StatusBadRequest,
+			)
 			return
 		}
 		log.Printf("error merging pull request: %v", err)
@@ -124,31 +136,51 @@ func (h *Handler) ReassignReviewer(c *gin.Context) {
 
 	resp, err := h.service.ReassignReviewer(c.Request.Context(), &req)
 	if err != nil {
-		if errors.Is(err, pullrequestModel.ErrPullRequestNotFound) {
-			notFoundResponse(c, "pull request not found")
-			return
-		}
-		if errors.Is(err, pullrequestModel.ErrPullRequestMerged) {
-			errorResponse(c, "PR_MERGED", "cannot reassign on merged PR", http.StatusConflict)
-			return
-		}
-		if errors.Is(err, pullrequestModel.ErrReviewerNotAssigned) {
-			errorResponse(c, "NOT_ASSIGNED", "reviewer is not assigned to this PR", http.StatusConflict)
-			return
-		}
-		if errors.Is(err, pullrequestModel.ErrNoCandidate) {
-			errorResponse(c, "NO_CANDIDATE", "no active replacement candidate in team", http.StatusConflict)
-			return
-		}
-		if errors.Is(err, pullrequestModel.ErrInvalidPullRequestID) {
-			errorResponse(c, "INVALID_REQUEST", "pull_request_id is required", http.StatusBadRequest)
-			return
-		}
-		log.Printf("error reassigning reviewer: %v", err)
-		errorResponse(c, "INTERNAL_ERROR", "internal server error", http.StatusInternalServerError)
+		h.handleReassignError(c, err)
 		return
 	}
 
 	c.JSON(http.StatusOK, resp)
 }
 
+// handleReassignError handles errors from ReassignReviewer service method.
+func (h *Handler) handleReassignError(c *gin.Context, err error) {
+	if errors.Is(err, pullrequestModel.ErrPullRequestNotFound) {
+		notFoundResponse(c, "pull request not found")
+		return
+	}
+	if errors.Is(err, pullrequestModel.ErrPullRequestMerged) {
+		errorResponse(c, "PR_MERGED", "cannot reassign on merged PR", http.StatusConflict)
+		return
+	}
+	if errors.Is(err, pullrequestModel.ErrReviewerNotAssigned) {
+		errorResponse(
+			c,
+			"NOT_ASSIGNED",
+			"reviewer is not assigned to this PR",
+			http.StatusConflict,
+		)
+		return
+	}
+	if errors.Is(err, pullrequestModel.ErrNoCandidate) {
+		errorResponse(
+			c,
+			"NO_CANDIDATE",
+			"no active replacement candidate in team",
+			http.StatusConflict,
+		)
+		return
+	}
+	if errors.Is(err, pullrequestModel.ErrInvalidPullRequestID) {
+		errorResponse(c, "INVALID_REQUEST", err.Error(), http.StatusBadRequest)
+		return
+	}
+	// Check for validation errors (string length, required fields)
+	if err.Error() != "" &&
+		(strings.Contains(err.Error(), "old_user_id") || strings.Contains(err.Error(), "required")) {
+		errorResponse(c, "INVALID_REQUEST", err.Error(), http.StatusBadRequest)
+		return
+	}
+	log.Printf("error reassigning reviewer: %v", err)
+	errorResponse(c, "INTERNAL_ERROR", "internal server error", http.StatusInternalServerError)
+}

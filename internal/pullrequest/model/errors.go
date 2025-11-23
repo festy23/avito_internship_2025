@@ -17,4 +17,8 @@ var (
 	ErrAuthorNotFound = errors.New("author not found")
 	// ErrInvalidPullRequestID indicates that the provided pull request ID is invalid (e.g., empty).
 	ErrInvalidPullRequestID = errors.New("invalid pull request ID")
+	// ErrMaxReviewersExceeded indicates that the maximum number of reviewers (2) has been exceeded.
+	ErrMaxReviewersExceeded = errors.New("maximum 2 reviewers allowed per pull request")
+	// ErrAuthorCannotBeReviewer indicates that the author cannot be assigned as a reviewer.
+	ErrAuthorCannotBeReviewer = errors.New("author cannot be assigned as reviewer")
 )

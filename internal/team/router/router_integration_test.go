@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 
 	teamModel "github.com/festy23/avito_internship/internal/team/model"
 )
@@ -42,11 +43,14 @@ func (testUser) TableName() string {
 }
 
 func setupIntegrationDB(t *testing.T) *gorm.DB {
-	// Use shared in-memory DB to ensure migrations/data are visible across connections
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	// Use unique in-memory DB for each test to ensure isolation
+	// Each call to Open(":memory:") creates a new in-memory database
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent), // Disable GORM logging
+	})
 	require.NoError(t, err)
 
-	// Limit connection pool to 1 to ensure shared in-memory DB works correctly
+	// Limit connection pool to 1 to ensure in-memory DB works correctly
 	var sqlDB *sql.DB
 	sqlDB, err = db.DB()
 	require.NoError(t, err)
@@ -93,12 +97,27 @@ func TestIntegration_AddTeam(t *testing.T) {
 
 		assert.Equal(t, "backend", response["team"].TeamName)
 		require.Len(t, response["team"].Members, 3)
-		assert.Equal(t, "u1", response["team"].Members[0].UserID)
-		assert.Equal(t, "Alice", response["team"].Members[0].Username)
-		assert.True(t, response["team"].Members[0].IsActive)
-		assert.Equal(t, "u2", response["team"].Members[1].UserID)
-		assert.Equal(t, "Bob", response["team"].Members[1].Username)
-		assert.False(t, response["team"].Members[1].IsActive)
+
+		// Find members by UserID (order is guaranteed by ORDER BY user_id ASC)
+		memberMap := make(map[string]teamModel.TeamMember)
+		for _, member := range response["team"].Members {
+			memberMap[member.UserID] = member
+		}
+
+		u1, ok := memberMap["u1"]
+		require.True(t, ok, "u1 should be in members")
+		assert.Equal(t, "Alice", u1.Username)
+		assert.True(t, u1.IsActive)
+
+		u2, ok := memberMap["u2"]
+		require.True(t, ok, "u2 should be in members")
+		assert.Equal(t, "Bob", u2.Username)
+		assert.False(t, u2.IsActive)
+
+		u3, ok := memberMap["u3"]
+		require.True(t, ok, "u3 should be in members")
+		assert.Equal(t, "Charlie", u3.Username)
+		assert.True(t, u3.IsActive)
 
 		// Verify in database
 		var dbTeam testTeam

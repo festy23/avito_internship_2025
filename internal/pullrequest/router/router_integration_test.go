@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 
 	pullrequestModel "github.com/festy23/avito_internship/internal/pullrequest/model"
 )
@@ -74,11 +75,14 @@ func (testUser) TableName() string {
 }
 
 func setupIntegrationDB(t *testing.T) *gorm.DB {
-	// Use shared in-memory DB to ensure migrations/data are visible across connections
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	// Use unique in-memory DB for each test to ensure isolation
+	// Each call to Open(":memory:") creates a new in-memory database
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent), // Disable GORM logging
+	})
 	require.NoError(t, err)
 
-	// Limit connection pool to 1 to ensure shared in-memory DB works correctly
+	// Limit connection pool to 1 to ensure in-memory DB works correctly
 	var sqlDB *sql.DB
 	sqlDB, err = db.DB()
 	require.NoError(t, err)
@@ -136,7 +140,11 @@ func TestIntegration_CreatePullRequest(t *testing.T) {
 		assert.Len(t, response["pr"].AssignedReviewers, 2)
 		assert.Contains(t, response["pr"].AssignedReviewers, "u2")
 		assert.Contains(t, response["pr"].AssignedReviewers, "u3")
-		assert.NotContains(t, response["pr"].AssignedReviewers, "u1") // Author should not be reviewer
+		assert.NotContains(
+			t,
+			response["pr"].AssignedReviewers,
+			"u1",
+		) // Author should not be reviewer
 	})
 
 	t.Run("duplicate pull request", func(t *testing.T) {
@@ -146,8 +154,13 @@ func TestIntegration_CreatePullRequest(t *testing.T) {
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
 		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
 			"u1", "Alice", "backend", true)
-		db.Exec("INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
-			"pr-1", "Existing PR", "u1", "OPEN")
+		db.Exec(
+			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
+			"pr-1",
+			"Existing PR",
+			"u1",
+			"OPEN",
+		)
 
 		req := &pullrequestModel.CreatePullRequestRequest{
 			PullRequestID:   "pr-1",
@@ -215,8 +228,13 @@ func TestIntegration_MergePullRequest(t *testing.T) {
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
 		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
 			"u1", "Alice", "backend", true)
-		db.Exec("INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
-			"pr-1", "Add feature", "u1", "OPEN")
+		db.Exec(
+			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
+			"pr-1",
+			"Add feature",
+			"u1",
+			"OPEN",
+		)
 
 		req := &pullrequestModel.MergePullRequestRequest{
 			PullRequestID: "pr-1",
@@ -246,8 +264,14 @@ func TestIntegration_MergePullRequest(t *testing.T) {
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
 		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
 			"u1", "Alice", "backend", true)
-		db.Exec("INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status, merged_at) VALUES (?, ?, ?, ?, ?)",
-			"pr-1", "Add feature", "u1", "MERGED", mergedAt)
+		db.Exec(
+			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status, merged_at) VALUES (?, ?, ?, ?, ?)",
+			"pr-1",
+			"Add feature",
+			"u1",
+			"MERGED",
+			mergedAt,
+		)
 
 		req := &pullrequestModel.MergePullRequestRequest{
 			PullRequestID: "pr-1",
@@ -298,9 +322,18 @@ func TestIntegration_ReassignReviewer(t *testing.T) {
 			"u2", "Bob", "backend", true)
 		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
 			"u3", "Charlie", "backend", true)
-		db.Exec("INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
-			"pr-1", "Add feature", "u1", "OPEN")
-		db.Exec("INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)", "pr-1", "u2")
+		db.Exec(
+			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
+			"pr-1",
+			"Add feature",
+			"u1",
+			"OPEN",
+		)
+		db.Exec(
+			"INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)",
+			"pr-1",
+			"u2",
+		)
 
 		req := &pullrequestModel.ReassignReviewerRequest{
 			PullRequestID: "pr-1",
@@ -332,8 +365,14 @@ func TestIntegration_ReassignReviewer(t *testing.T) {
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
 		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
 			"u1", "Alice", "backend", true)
-		db.Exec("INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status, merged_at) VALUES (?, ?, ?, ?, ?)",
-			"pr-1", "Add feature", "u1", "MERGED", mergedAt)
+		db.Exec(
+			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status, merged_at) VALUES (?, ?, ?, ?, ?)",
+			"pr-1",
+			"Add feature",
+			"u1",
+			"MERGED",
+			mergedAt,
+		)
 
 		req := &pullrequestModel.ReassignReviewerRequest{
 			PullRequestID: "pr-1",
@@ -361,8 +400,13 @@ func TestIntegration_ReassignReviewer(t *testing.T) {
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
 		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
 			"u1", "Alice", "backend", true)
-		db.Exec("INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
-			"pr-1", "Add feature", "u1", "OPEN")
+		db.Exec(
+			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
+			"pr-1",
+			"Add feature",
+			"u1",
+			"OPEN",
+		)
 
 		req := &pullrequestModel.ReassignReviewerRequest{
 			PullRequestID: "pr-1",
@@ -392,9 +436,18 @@ func TestIntegration_ReassignReviewer(t *testing.T) {
 			"u1", "Alice", "backend", true)
 		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
 			"u2", "Bob", "backend", true)
-		db.Exec("INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
-			"pr-1", "Add feature", "u1", "OPEN")
-		db.Exec("INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)", "pr-1", "u2")
+		db.Exec(
+			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
+			"pr-1",
+			"Add feature",
+			"u1",
+			"OPEN",
+		)
+		db.Exec(
+			"INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)",
+			"pr-1",
+			"u2",
+		)
 
 		req := &pullrequestModel.ReassignReviewerRequest{
 			PullRequestID: "pr-1",
@@ -495,10 +548,17 @@ func TestIntegration_FullFlow(t *testing.T) {
 
 		assert.Equal(t, http.StatusCreated, w.Code)
 
+		// Get created PR to find assigned reviewers
+		var createResponse map[string]pullrequestModel.PullRequestResponse
+		err := json.Unmarshal(w.Body.Bytes(), &createResponse)
+		require.NoError(t, err)
+		require.NotEmpty(t, createResponse["pr"].AssignedReviewers, "PR should have at least one reviewer assigned")
+		oldReviewerID := createResponse["pr"].AssignedReviewers[0]
+
 		// Reassign reviewer
 		reassignReq := &pullrequestModel.ReassignReviewerRequest{
 			PullRequestID: "pr-1",
-			OldUserID:     "u2",
+			OldUserID:     oldReviewerID,
 		}
 
 		body, _ = json.Marshal(reassignReq)
@@ -510,9 +570,12 @@ func TestIntegration_FullFlow(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 
 		var reassignResponse pullrequestModel.ReassignReviewerResponse
-		err := json.Unmarshal(w.Body.Bytes(), &reassignResponse)
+		err = json.Unmarshal(w.Body.Bytes(), &reassignResponse)
 		require.NoError(t, err)
-		assert.NotEqual(t, "u2", reassignResponse.ReplacedBy)
+		// ReplacedBy should be different from the old reviewer
+		assert.NotEqual(t, oldReviewerID, reassignResponse.ReplacedBy)
+		// ReplacedBy should be one of the available users (u3 or u4)
+		assert.Contains(t, []string{"u3", "u4"}, reassignResponse.ReplacedBy)
 
 		// Merge PR
 		mergeReq := &pullrequestModel.MergePullRequestRequest{
@@ -528,4 +591,3 @@ func TestIntegration_FullFlow(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
 }
-

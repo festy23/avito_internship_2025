@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 
 	teamModel "github.com/festy23/avito_internship/internal/team/model"
 	userModel "github.com/festy23/avito_internship/internal/user/model"
@@ -22,7 +21,11 @@ type Repository interface {
 	GetByName(ctx context.Context, teamName string) (*teamModel.Team, error)
 
 	// CreateOrUpdateUser creates or updates a user in the team.
-	CreateOrUpdateUser(ctx context.Context, teamName, userID, username string, isActive bool) (*userModel.User, error)
+	CreateOrUpdateUser(
+		ctx context.Context,
+		teamName, userID, username string,
+		isActive bool,
+	) (*userModel.User, error)
 
 	// GetTeamMembers returns all members of a team.
 	GetTeamMembers(ctx context.Context, teamName string) ([]teamModel.TeamMember, error)
@@ -110,6 +113,13 @@ func (r *repository) CreateOrUpdateUser(
 	isActive bool,
 ) (*userModel.User, error) {
 	now := time.Now()
+	// Convert boolean to int for SQLite compatibility (SQLite stores booleans as INTEGER)
+	var isActiveInt int
+	if isActive {
+		isActiveInt = 1
+	} else {
+		isActiveInt = 0
+	}
 	user := &userModel.User{
 		UserID:    userID,
 		Username:  username,
@@ -119,26 +129,24 @@ func (r *repository) CreateOrUpdateUser(
 		UpdatedAt: now,
 	}
 
-	// Use OnConflict for atomic upsert to prevent race conditions
-	// On conflict, update only: username, team_name, is_active, updated_at
-	// created_at is preserved from original insert
+	// Use raw SQL for atomic upsert to prevent race conditions
+	// Why raw SQL instead of GORM OnConflict?
+	// 1. SQLite applies DEFAULT value from schema (DEFAULT TRUE) even when GORM explicitly sets IsActive=false
+	// 2. GORM's OnConflict with clause.Assignments doesn't override SQLite's DEFAULT constraint
+	// 3. Raw SQL allows explicit INTEGER value (0/1) that bypasses DEFAULT constraint
+	// 4. This is a known limitation when using GORM with SQLite and DEFAULT values
 	err := r.db.WithContext(ctx).
-		Clauses(clause.OnConflict{
-			Columns: []clause.Column{{Name: "user_id"}},
-			DoUpdates: clause.Assignments(map[string]interface{}{
-				"username":   username,
-				"team_name":  teamName,
-				"is_active":  isActive,
-				"updated_at": now,
-			}),
-		}).
-		Create(user).Error
+		Exec("INSERT INTO users (user_id, username, team_name, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET username = ?, team_name = ?, is_active = ?, updated_at = ?",
+			userID, username, teamName, isActiveInt, now, now,
+			username, teamName, isActiveInt, now).
+		Error
 
 	if err != nil {
 		return nil, err
 	}
 
 	// Fetch the user to return complete data (including created_at if it was a new record)
+	// Use the same db connection (which may be a transaction) to ensure consistency
 	err = r.db.WithContext(ctx).Where("user_id = ?", userID).First(user).Error
 	if err != nil {
 		return nil, err
@@ -148,7 +156,10 @@ func (r *repository) CreateOrUpdateUser(
 }
 
 // GetTeamMembers returns all members of a team.
-func (r *repository) GetTeamMembers(ctx context.Context, teamName string) ([]teamModel.TeamMember, error) {
+func (r *repository) GetTeamMembers(
+	ctx context.Context,
+	teamName string,
+) ([]teamModel.TeamMember, error) {
 	var members []teamModel.TeamMember
 
 	err := r.db.WithContext(ctx).

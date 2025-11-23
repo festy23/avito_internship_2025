@@ -29,3 +29,17 @@ type GetReviewResponse struct {
 	UserID       string             `json:"user_id"`
 	PullRequests []PullRequestShort `json:"pull_requests"`
 }
+
+// BulkDeactivateTeamRequest represents the request to bulk deactivate team members.
+type BulkDeactivateTeamRequest struct {
+	TeamName string `json:"team_name" binding:"required"`
+}
+
+// BulkDeactivateTeamResponse represents the response after bulk deactivation.
+type BulkDeactivateTeamResponse struct {
+	TeamName          string   `json:"team_name"`
+	DeactivatedUsers  []string `json:"deactivated_users"`
+	ReassignedPRs     []string `json:"reassigned_prs"`
+	DeactivatedCount  int      `json:"deactivated_count"`
+	ReassignedPRCount int      `json:"reassigned_pr_count"`
+}

@@ -89,6 +89,22 @@ func (m *mockRepository) GetUserTeam(ctx context.Context, userID string) (string
 	return args.String(0), args.Error(1)
 }
 
+func (m *mockRepository) GetOpenPRsWithReviewers(ctx context.Context, reviewerIDs []string) ([]string, error) {
+	args := m.Called(ctx, reviewerIDs)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]string), args.Error(1)
+}
+
+func (m *mockRepository) GetOpenPRsWithAuthors(ctx context.Context, reviewerIDs []string) (map[string]string, error) {
+	args := m.Called(ctx, reviewerIDs)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(map[string]string), args.Error(1)
+}
+
 func setupTestDB(t *testing.T) *gorm.DB {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)

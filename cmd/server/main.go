@@ -18,6 +18,7 @@ import (
 	"github.com/festy23/avito_internship/internal/health"
 	"github.com/festy23/avito_internship/internal/middleware"
 	pullrequestRouter "github.com/festy23/avito_internship/internal/pullrequest/router"
+	statisticsRouter "github.com/festy23/avito_internship/internal/statistics/router"
 	teamRouter "github.com/festy23/avito_internship/internal/team/router"
 	userRouter "github.com/festy23/avito_internship/internal/user/router"
 	"github.com/festy23/avito_internship/pkg/logger"
@@ -71,6 +72,7 @@ func main() {
 	teamRouter.RegisterRoutes(r, db, log)
 	userRouter.RegisterRoutes(r, db, log)
 	pullrequestRouter.RegisterRoutes(r, db, log)
+	statisticsRouter.RegisterRoutes(r, db, log)
 
 	// Create HTTP server with timeouts
 	srv := &http.Server{

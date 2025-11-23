@@ -21,6 +21,12 @@ type Repository interface {
 
 	// GetAssignedPullRequests returns PRs where user is reviewer.
 	GetAssignedPullRequests(ctx context.Context, userID string) ([]model.PullRequestShort, error)
+
+	// BulkDeactivateTeamMembers deactivates all active members of a team.
+	BulkDeactivateTeamMembers(ctx context.Context, teamName string) ([]string, error)
+
+	// GetTeamMemberIDs returns all user IDs for a team.
+	GetTeamMemberIDs(ctx context.Context, teamName string) ([]string, error)
 }
 
 type repository struct {
@@ -113,4 +119,85 @@ func (r *repository) GetAssignedPullRequests(ctx context.Context, userID string)
 
 	r.logger.Debugw("GetAssignedPullRequests completed", "user_id", userID, "pr_count", len(prs))
 	return prs, nil
+}
+
+// BulkDeactivateTeamMembers deactivates all active members of a team atomically.
+// Uses PostgreSQL RETURNING clause to get updated user IDs in a single operation,
+// avoiding TOCTOU (Time-of-check to time-of-use) race conditions.
+func (r *repository) BulkDeactivateTeamMembers(ctx context.Context, teamName string) ([]string, error) {
+	r.logger.Infow("BulkDeactivateTeamMembers called", "team_name", teamName)
+
+	var deactivatedUserIDs []string
+
+	// Use raw SQL with RETURNING clause for atomic update and fetch
+	// This ensures we only return IDs of rows actually updated by this operation
+	sqlDB, err := r.db.DB()
+	if err != nil {
+		r.logger.Errorw("BulkDeactivateTeamMembers failed to get sql.DB", "team_name", teamName, "error", err)
+		return nil, err
+	}
+
+	query := `
+		UPDATE users 
+		SET is_active = false 
+		WHERE team_name = $1 AND is_active = true 
+		RETURNING user_id
+	`
+
+	rows, err := sqlDB.QueryContext(ctx, query, teamName)
+	if err != nil {
+		r.logger.Errorw("BulkDeactivateTeamMembers database error", "team_name", teamName, "error", err)
+		return nil, err
+	}
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil {
+			r.logger.Errorw("BulkDeactivateTeamMembers failed to close rows", "team_name", teamName, "error", closeErr)
+		}
+	}()
+
+	for rows.Next() {
+		var userID string
+		if err := rows.Scan(&userID); err != nil {
+			r.logger.Errorw("BulkDeactivateTeamMembers failed to scan user_id", "team_name", teamName, "error", err)
+			return nil, err
+		}
+		deactivatedUserIDs = append(deactivatedUserIDs, userID)
+	}
+
+	if err := rows.Err(); err != nil {
+		r.logger.Errorw("BulkDeactivateTeamMembers row iteration error", "team_name", teamName, "error", err)
+		return nil, err
+	}
+
+	r.logger.Infow(
+		"BulkDeactivateTeamMembers completed",
+		"team_name",
+		teamName,
+		"deactivated_count",
+		len(deactivatedUserIDs),
+	)
+	return deactivatedUserIDs, nil
+}
+
+// GetTeamMemberIDs returns all user IDs for a team.
+func (r *repository) GetTeamMemberIDs(ctx context.Context, teamName string) ([]string, error) {
+	r.logger.Debugw("GetTeamMemberIDs called", "team_name", teamName)
+
+	var userIDs []string
+	err := r.db.WithContext(ctx).
+		Model(&model.User{}).
+		Where("team_name = ?", teamName).
+		Pluck("user_id", &userIDs).Error
+
+	if err != nil {
+		r.logger.Errorw("GetTeamMemberIDs database error", "team_name", teamName, "error", err)
+		return nil, err
+	}
+
+	if userIDs == nil {
+		userIDs = []string{}
+	}
+
+	r.logger.Debugw("GetTeamMemberIDs completed", "team_name", teamName, "count", len(userIDs))
+	return userIDs, nil
 }

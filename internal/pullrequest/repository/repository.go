@@ -45,6 +45,12 @@ type Repository interface {
 
 	// GetUserTeam returns team name for a user.
 	GetUserTeam(ctx context.Context, userID string) (string, error)
+
+	// GetOpenPRsWithReviewers returns open PRs that have reviewers from the given user IDs.
+	GetOpenPRsWithReviewers(ctx context.Context, reviewerIDs []string) ([]string, error)
+
+	// GetOpenPRsWithAuthors returns open PRs with their authors for given reviewer IDs.
+	GetOpenPRsWithAuthors(ctx context.Context, reviewerIDs []string) (map[string]string, error)
 }
 
 type repository struct {
@@ -323,6 +329,71 @@ func (r *repository) GetActiveTeamMembers(
 
 	r.logger.Debugw("GetActiveTeamMembers completed", "team_name", teamName, "member_count", len(users))
 	return users, nil
+}
+
+// GetOpenPRsWithReviewers returns open PRs that have reviewers from the given user IDs.
+func (r *repository) GetOpenPRsWithReviewers(ctx context.Context, reviewerIDs []string) ([]string, error) {
+	r.logger.Debugw("GetOpenPRsWithReviewers called", "reviewer_count", len(reviewerIDs))
+
+	if len(reviewerIDs) == 0 {
+		return []string{}, nil
+	}
+
+	var prIDs []string
+	err := r.db.WithContext(ctx).
+		Table("pull_request_reviewers").
+		Select("DISTINCT pull_request_reviewers.pull_request_id").
+		Joins("JOIN pull_requests ON pull_request_reviewers.pull_request_id = pull_requests.pull_request_id").
+		Where("pull_request_reviewers.user_id IN ? AND pull_requests.status = ?", reviewerIDs, "OPEN").
+		Pluck("pull_request_reviewers.pull_request_id", &prIDs).Error
+
+	if err != nil {
+		r.logger.Errorw("GetOpenPRsWithReviewers database error", "error", err)
+		return nil, err
+	}
+
+	if prIDs == nil {
+		prIDs = []string{}
+	}
+
+	r.logger.Debugw("GetOpenPRsWithReviewers completed", "pr_count", len(prIDs))
+	return prIDs, nil
+}
+
+// GetOpenPRsWithAuthors returns open PRs with their authors for given reviewer IDs.
+// Returns map[prID]authorID.
+func (r *repository) GetOpenPRsWithAuthors(ctx context.Context, reviewerIDs []string) (map[string]string, error) {
+	r.logger.Debugw("GetOpenPRsWithAuthors called", "reviewer_count", len(reviewerIDs))
+
+	if len(reviewerIDs) == 0 {
+		return map[string]string{}, nil
+	}
+
+	type prAuthor struct {
+		PullRequestID string `gorm:"column:pull_request_id"`
+		AuthorID      string `gorm:"column:author_id"`
+	}
+
+	var prAuthors []prAuthor
+	err := r.db.WithContext(ctx).
+		Table("pull_request_reviewers").
+		Select("DISTINCT pull_request_reviewers.pull_request_id, pull_requests.author_id").
+		Joins("JOIN pull_requests ON pull_request_reviewers.pull_request_id = pull_requests.pull_request_id").
+		Where("pull_request_reviewers.user_id IN ? AND pull_requests.status = ?", reviewerIDs, "OPEN").
+		Scan(&prAuthors).Error
+
+	if err != nil {
+		r.logger.Errorw("GetOpenPRsWithAuthors database error", "error", err)
+		return nil, err
+	}
+
+	result := make(map[string]string, len(prAuthors))
+	for _, pa := range prAuthors {
+		result[pa.PullRequestID] = pa.AuthorID
+	}
+
+	r.logger.Debugw("GetOpenPRsWithAuthors completed", "pr_count", len(result))
+	return result, nil
 }
 
 // GetUserTeam returns team name for a user.

@@ -43,6 +43,17 @@ func (m *mockService) GetReview(ctx context.Context, userID string) (*model.GetR
 	return args.Get(0).(*model.GetReviewResponse), args.Error(1)
 }
 
+func (m *mockService) BulkDeactivateTeamMembers(
+	ctx context.Context,
+	req *model.BulkDeactivateTeamRequest,
+) (*model.BulkDeactivateTeamResponse, error) {
+	args := m.Called(ctx, req)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*model.BulkDeactivateTeamResponse), args.Error(1)
+}
+
 var _ service.Service = (*mockService)(nil)
 
 func setupRouter() *gin.Engine {

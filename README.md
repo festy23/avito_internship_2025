@@ -205,6 +205,31 @@ Content-Type: application/json
 GET /users/getReview?user_id=u1
 ```
 
+#### Массовая деактивация пользователей команды
+
+```bash
+POST /users/bulkDeactivate
+Content-Type: application/json
+
+{
+  "team_name": "backend"
+}
+```
+
+Деактивирует всех активных пользователей команды и автоматически переназначает ревьюверов в открытых PR на активных участников команды.
+
+**Пример ответа:**
+
+```json
+{
+  "team_name": "backend",
+  "deactivated_users": ["u1", "u2"],
+  "reassigned_prs": ["pr-1001", "pr-1002"],
+  "deactivated_count": 2,
+  "reassigned_pr_count": 2
+}
+```
+
 ### Pull Requests
 
 #### Создать PR
@@ -248,6 +273,57 @@ Content-Type: application/json
 ```
 
 Новый ревьювер выбирается случайно из команды заменяемого ревьювера.
+
+### Statistics
+
+#### Статистика по ревьюверам
+
+```bash
+GET /statistics/reviewers
+```
+
+Возвращает статистику по всем пользователям: количество назначений каждого ревьювера.
+
+**Пример ответа:**
+
+```json
+{
+  "reviewers": [
+    {
+      "user_id": "u1",
+      "username": "Alice",
+      "team_name": "backend",
+      "assignment_count": 5,
+      "is_active": true
+    }
+  ],
+  "total": 1
+}
+```
+
+#### Статистика по Pull Requests
+
+```bash
+GET /statistics/pullrequests
+```
+
+Возвращает статистику по PR: общее количество, распределение по статусам, среднее количество ревьюверов.
+
+**Пример ответа:**
+
+```json
+{
+  "statistics": {
+    "total_prs": 10,
+    "open_prs": 7,
+    "merged_prs": 3,
+    "average_reviewers_per_pr": 1.5,
+    "prs_with_0_reviewers": 1,
+    "prs_with_1_reviewer": 4,
+    "prs_with_2_reviewers": 5
+  }
+}
+```
 
 ## Структура проекта
 
@@ -298,6 +374,16 @@ make test-e2e
 
 Подробнее о тестировании см. [docs/TESTING.md](docs/TESTING.md).
 
+### Load тесты
+
+```bash
+make test-load
+```
+
+Нагрузочное тестирование для проверки соответствия требованиям производительности (RPS 5, SLI 300 мс, SLI 99.9%).
+
+Подробнее см. [docs/LOAD_TESTING.md](docs/LOAD_TESTING.md).
+
 ## Линтинг
 
 ```bash
@@ -341,6 +427,20 @@ Workflow файл: `.github/workflows/ci.yml`
 
 Статус проверок отображается в GitHub при создании Pull Request.
 
+## Дополнительные задания
+
+Все дополнительные задания из технического задания выполнены:
+
+**Эндпоинт статистики** - реализованы эндпоинты `/statistics/reviewers` и `/statistics/pullrequests` для получения статистики по назначениям ревьюверов и PR
+
+**Нагрузочное тестирование** - реализованы load тесты для проверки соответствия требованиям (RPS 5, SLI 300 мс, SLI 99.9%). Подробнее см. [docs/LOAD_TESTING.md](docs/LOAD_TESTING.md)
+
+**Массовая деактивация пользователей** - реализован эндпоинт `/users/bulkDeactivate` для деактивации всех пользователей команды с автоматическим переназначением ревьюверов в открытых PR (оптимизировано для выполнения в пределах 100 мс)
+
+**E2E тестирование** - реализованы комплексные E2E тесты, покрывающие основные бизнес-сценарии, граничные случаи и обработку ошибок
+
+**Конфигурация линтера** - настроен golangci-lint с подробной документацией. Подробнее см. [docs/LINTER.md](docs/LINTER.md)
+
 ## Требования
 
 - Go 1.22+
@@ -352,8 +452,16 @@ Workflow файл: `.github/workflows/ci.yml`
 - [Архитектура](docs/ARCHITECTURE.md)
 - [Развертывание](docs/DEPLOYMENT.md)
 - [Контрибуция](docs/CONTRIBUTING.md)
+- [Тестирование](docs/TESTING.md)
+- [Нагрузочное тестирование](docs/LOAD_TESTING.md)
 - [Линтер](docs/LINTER.md)
 - [OpenAPI спецификация](api/openapi.yml)
+
+### Примечание об OpenAPI спецификации
+
+В файле `api/openapi.yml` обнаружена опечатка в примере для эндпоинта `/pullRequest/reassign` (строка 347): в примере используется `old_reviewer_id`, тогда как в схеме запроса (строка 344) корректно указано `old_user_id`.
+
+**Важно:** Согласно техническому заданию, файл `openapi.yml` изменять нельзя, поэтому опечатка сохранена в спецификации. Реализация сервиса использует корректное поле `old_user_id`, что соответствует схеме запроса.
 
 ## Лицензия
 

@@ -1,6 +1,7 @@
 package database
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
@@ -286,3 +287,74 @@ func TestGetEnv(t *testing.T) {
 	}
 }
 
+func TestSanitizeError(t *testing.T) {
+	tests := []struct {
+		name             string
+		err              error
+		cfg              Config
+		shouldContain    []string
+		shouldNotContain []string
+	}{
+		{
+			name: "password in error message",
+			err:  fmt.Errorf("connection failed: host=localhost user=test password=secret123 dbname=test"),
+			cfg: Config{
+				Host:     "localhost",
+				User:     "test",
+				Password: "secret123",
+				DBName:   "test",
+				Port:     "5432",
+				SSLMode:  "disable",
+				TimeZone: "UTC",
+			},
+			shouldContain:    []string{"failed to connect to database", "password=***"},
+			shouldNotContain: []string{"secret123", "password=secret123"},
+		},
+		{
+			name: "full DSN in error message",
+			err:  fmt.Errorf("failed to connect to `host=localhost user=admin password=mypass dbname=prod port=5432 sslmode=require TimeZone=UTC`"),
+			cfg: Config{
+				Host:     "localhost",
+				User:     "admin",
+				Password: "mypass",
+				DBName:   "prod",
+				Port:     "5432",
+				SSLMode:  "require",
+				TimeZone: "UTC",
+			},
+			shouldContain:    []string{"failed to connect to database", "password=***"},
+			shouldNotContain: []string{"mypass", "password=mypass"},
+		},
+		{
+			name: "nil error",
+			err:  nil,
+			cfg: Config{
+				Password: "secret",
+			},
+			shouldContain:    []string{},
+			shouldNotContain: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := sanitizeError(tt.err, tt.cfg)
+
+			if tt.err == nil {
+				assert.Nil(t, result)
+				return
+			}
+
+			require.NotNil(t, result)
+			errMsg := result.Error()
+
+			for _, shouldContain := range tt.shouldContain {
+				assert.Contains(t, errMsg, shouldContain, "error message should contain: %s", shouldContain)
+			}
+
+			for _, shouldNotContain := range tt.shouldNotContain {
+				assert.NotContains(t, errMsg, shouldNotContain, "error message should not contain sensitive data: %s", shouldNotContain)
+			}
+		})
+	}
+}

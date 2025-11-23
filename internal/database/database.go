@@ -4,6 +4,7 @@ package database
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -53,12 +54,28 @@ func New() (*gorm.DB, error) {
 	return NewWithConfig(cfg)
 }
 
+// sanitizeError removes sensitive information (password) from error messages.
+func sanitizeError(err error, cfg Config) error {
+	if err == nil {
+		return nil
+	}
+	errMsg := err.Error()
+	// Remove password from error message if present
+	errMsg = strings.ReplaceAll(errMsg, cfg.Password, "***")
+	// Also remove full DSN if it appears in error
+	safeDSN := fmt.Sprintf("host=%s user=%s password=*** dbname=%s port=%s sslmode=%s TimeZone=%s",
+		cfg.Host, cfg.User, cfg.DBName, cfg.Port, cfg.SSLMode, cfg.TimeZone)
+	dsn := buildDSN(cfg)
+	errMsg = strings.ReplaceAll(errMsg, dsn, safeDSN)
+	return fmt.Errorf("failed to connect to database: %s", errMsg)
+}
+
 // NewWithConfig creates a new database connection with custom configuration.
 func NewWithConfig(cfg Config) (*gorm.DB, error) {
 	dsn := buildDSN(cfg)
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %w", err)
+		return nil, sanitizeError(err, cfg)
 	}
 	return db, nil
 }

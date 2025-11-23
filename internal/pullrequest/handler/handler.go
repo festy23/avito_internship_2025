@@ -150,6 +150,10 @@ func (h *Handler) handleReassignError(c *gin.Context, err error) {
 		notFoundResponse(c, "pull request not found")
 		return
 	}
+	if errors.Is(err, pullrequestModel.ErrAuthorNotFound) {
+		notFoundResponse(c, "user not found")
+		return
+	}
 	if errors.Is(err, pullrequestModel.ErrPullRequestMerged) {
 		errorResponse(c, "PR_MERGED", "cannot reassign on merged PR", http.StatusConflict)
 		return

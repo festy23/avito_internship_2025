@@ -137,7 +137,7 @@ func TestIntegration_CreatePullRequest(t *testing.T) {
 		assert.Equal(t, "pr-1", response["pr"].PullRequestID)
 		assert.Equal(t, "Add feature", response["pr"].PullRequestName)
 		assert.Equal(t, "u1", response["pr"].AuthorID)
-		assert.Equal(t, "OPEN", response["pr"].Status)
+		assert.Equal(t, pullrequestModel.StatusOPEN, response["pr"].Status)
 		assert.Len(t, response["pr"].AssignedReviewers, 2)
 		assert.Contains(t, response["pr"].AssignedReviewers, "u2")
 		assert.Contains(t, response["pr"].AssignedReviewers, "u3")
@@ -160,7 +160,7 @@ func TestIntegration_CreatePullRequest(t *testing.T) {
 			"pr-1",
 			"Existing PR",
 			"u1",
-			"OPEN",
+			pullrequestModel.StatusOPEN,
 		)
 
 		req := &pullrequestModel.CreatePullRequestRequest{
@@ -234,7 +234,7 @@ func TestIntegration_MergePullRequest(t *testing.T) {
 			"pr-1",
 			"Add feature",
 			"u1",
-			"OPEN",
+			pullrequestModel.StatusOPEN,
 		)
 
 		req := &pullrequestModel.MergePullRequestRequest{
@@ -253,7 +253,7 @@ func TestIntegration_MergePullRequest(t *testing.T) {
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		require.NoError(t, err)
 
-		assert.Equal(t, "MERGED", response["pr"].Status)
+		assert.Equal(t, pullrequestModel.StatusMERGED, response["pr"].Status)
 		assert.NotEmpty(t, response["pr"].MergedAt)
 	})
 
@@ -270,7 +270,7 @@ func TestIntegration_MergePullRequest(t *testing.T) {
 			"pr-1",
 			"Add feature",
 			"u1",
-			"MERGED",
+			pullrequestModel.StatusMERGED,
 			mergedAt,
 		)
 
@@ -290,7 +290,7 @@ func TestIntegration_MergePullRequest(t *testing.T) {
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		require.NoError(t, err)
 
-		assert.Equal(t, "MERGED", response["pr"].Status)
+		assert.Equal(t, pullrequestModel.StatusMERGED, response["pr"].Status)
 	})
 
 	t.Run("pull request not found", func(t *testing.T) {
@@ -328,7 +328,7 @@ func TestIntegration_ReassignReviewer(t *testing.T) {
 			"pr-1",
 			"Add feature",
 			"u1",
-			"OPEN",
+			pullrequestModel.StatusOPEN,
 		)
 		db.Exec(
 			"INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)",
@@ -371,7 +371,7 @@ func TestIntegration_ReassignReviewer(t *testing.T) {
 			"pr-1",
 			"Add feature",
 			"u1",
-			"MERGED",
+			pullrequestModel.StatusMERGED,
 			mergedAt,
 		)
 
@@ -408,7 +408,7 @@ func TestIntegration_ReassignReviewer(t *testing.T) {
 			"pr-1",
 			"Add feature",
 			"u1",
-			"OPEN",
+			pullrequestModel.StatusOPEN,
 		)
 		// Note: u2 exists in team but is not assigned as reviewer to pr-1
 
@@ -445,7 +445,7 @@ func TestIntegration_ReassignReviewer(t *testing.T) {
 			"pr-1",
 			"Add feature",
 			"u1",
-			"OPEN",
+			pullrequestModel.StatusOPEN,
 		)
 		db.Exec(
 			"INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)",
@@ -519,7 +519,7 @@ func TestIntegration_FullFlow(t *testing.T) {
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		require.NoError(t, err)
 
-		assert.Equal(t, "MERGED", response["pr"].Status)
+		assert.Equal(t, pullrequestModel.StatusMERGED, response["pr"].Status)
 	})
 
 	t.Run("create PR then reassign then merge", func(t *testing.T) {

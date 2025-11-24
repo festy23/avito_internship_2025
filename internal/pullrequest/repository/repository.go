@@ -75,7 +75,7 @@ func (r *repository) Create(
 		PullRequestID:   prID,
 		PullRequestName: prName,
 		AuthorID:        authorID,
-		Status:          "OPEN",
+		Status:          pullrequestModel.StatusOPEN,
 		CreatedAt:       now,
 		MergedAt:        nil,
 	}
@@ -151,6 +151,20 @@ func (r *repository) UpdateStatus(
 	status string,
 	mergedAt *time.Time,
 ) error {
+	// Validate status before updating
+	if err := pullrequestModel.ValidateStatus(status); err != nil {
+		r.logger.Debugw(
+			"UpdateStatus invalid status",
+			"pull_request_id",
+			prID,
+			"status",
+			status,
+			"error",
+			err,
+		)
+		return err
+	}
+
 	r.logger.Infow("UpdateStatus called", "pull_request_id", prID, "new_status", status)
 
 	updates := map[string]interface{}{
@@ -169,7 +183,13 @@ func (r *repository) UpdateStatus(
 		Updates(updates)
 
 	if result.Error != nil {
-		r.logger.Errorw("UpdateStatus database error", "pull_request_id", prID, "error", result.Error)
+		r.logger.Errorw(
+			"UpdateStatus database error",
+			"pull_request_id",
+			prID,
+			"error",
+			result.Error,
+		)
 		return result.Error
 	}
 
@@ -183,58 +203,69 @@ func (r *repository) UpdateStatus(
 }
 
 // AssignReviewer assigns a reviewer to a pull request.
-// Checks max reviewers limit (2) before assignment.
-// Note: In production with PostgreSQL, this is enforced by database trigger.
+// Business rules validation should be done in service layer before calling this method.
 func (r *repository) AssignReviewer(ctx context.Context, prID, userID string) error {
 	r.logger.Infow("AssignReviewer called", "pull_request_id", prID, "user_id", userID)
 
-	// Check current reviewer count to enforce max 2 reviewers limit
-	// This is needed for SQLite compatibility (PostgreSQL uses trigger)
-	reviewers, countErr := r.GetReviewers(ctx, prID)
-	if countErr != nil {
-		r.logger.Errorw("AssignReviewer failed to get reviewers", "pull_request_id", prID, "error", countErr)
-		return countErr
-	}
-	// Check for duplicate reviewer
-	for _, reviewerID := range reviewers {
-		if reviewerID == userID {
-			r.logger.Debugw("AssignReviewer duplicate reviewer", "pull_request_id", prID, "user_id", userID)
-			return pullrequestModel.ErrReviewerAlreadyAssigned
-		}
-	}
-	if len(reviewers) >= 2 {
+	// Check if reviewer is already assigned (to handle SQLite unique constraint issues with GORM)
+	var existing pullrequestModel.PullRequestReviewer
+	err := r.db.WithContext(ctx).
+		Where("pull_request_id = ? AND user_id = ?", prID, userID).
+		First(&existing).Error
+
+	if err == nil {
+		// Reviewer already exists
 		r.logger.Debugw(
-			"AssignReviewer max reviewers exceeded",
-			"pull_request_id", prID,
-			"current_count", len(reviewers),
+			"AssignReviewer duplicate reviewer",
+			"pull_request_id",
+			prID,
+			"user_id",
+			userID,
 		)
-		return pullrequestModel.ErrMaxReviewersExceeded
+		return pullrequestModel.ErrReviewerAlreadyAssigned
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		// Database error (not just "not found")
+		r.logger.Errorw(
+			"AssignReviewer database error when checking existing",
+			"pull_request_id", prID,
+			"user_id", userID,
+			"error", err,
+		)
+		return err
 	}
 
+	// Reviewer doesn't exist, proceed with creation
 	reviewer := &pullrequestModel.PullRequestReviewer{
 		PullRequestID: prID,
 		UserID:        userID,
 		AssignedAt:    time.Now(),
 	}
 
-	err := r.db.WithContext(ctx).Create(reviewer).Error
+	err = r.db.WithContext(ctx).Create(reviewer).Error
 	if err != nil {
-		// Check for unique constraint violation (same reviewer already assigned)
+		// Check for unique constraint violation (in case check above didn't catch it)
 		if errors.Is(err, gorm.ErrDuplicatedKey) || isDuplicateError(err) {
-			r.logger.Debugw("AssignReviewer duplicate key constraint", "pull_request_id", prID, "user_id", userID)
+			r.logger.Debugw(
+				"AssignReviewer duplicate key constraint on create",
+				"pull_request_id",
+				prID,
+				"user_id",
+				userID,
+			)
 			return pullrequestModel.ErrReviewerAlreadyAssigned
 		}
-		// Check for max reviewers constraint from trigger (atomic protection)
-		if err.Error() != "" && contains(err.Error(), "Maximum 2 reviewers") {
-			r.logger.Debugw("AssignReviewer max reviewers constraint", "pull_request_id", prID)
-			return pullrequestModel.ErrMaxReviewersExceeded
-		}
-		// Check for author constraint from trigger
-		if err.Error() != "" && contains(err.Error(), "Author cannot be assigned") {
-			r.logger.Debugw("AssignReviewer author constraint", "pull_request_id", prID, "user_id", userID)
-			return pullrequestModel.ErrAuthorCannotBeReviewer
-		}
-		r.logger.Errorw("AssignReviewer database error", "pull_request_id", prID, "user_id", userID, "error", err)
+		// Business rules are validated in service layer before calling this method
+		// Any other error is a technical database error
+		r.logger.Errorw(
+			"AssignReviewer database error",
+			"pull_request_id",
+			prID,
+			"user_id",
+			userID,
+			"error",
+			err,
+		)
 		return err
 	}
 
@@ -264,7 +295,13 @@ func (r *repository) RemoveReviewer(ctx context.Context, prID, userID string) er
 	}
 
 	if result.RowsAffected == 0 {
-		r.logger.Debugw("RemoveReviewer reviewer not assigned", "pull_request_id", prID, "user_id", userID)
+		r.logger.Debugw(
+			"RemoveReviewer reviewer not assigned",
+			"pull_request_id",
+			prID,
+			"user_id",
+			userID,
+		)
 		return pullrequestModel.ErrReviewerNotAssigned
 	}
 
@@ -296,7 +333,13 @@ func (r *repository) GetReviewers(ctx context.Context, prID string) ([]string, e
 		userIDs = []string{}
 	}
 
-	r.logger.Debugw("GetReviewers completed", "pull_request_id", prID, "reviewer_count", len(userIDs))
+	r.logger.Debugw(
+		"GetReviewers completed",
+		"pull_request_id",
+		prID,
+		"reviewer_count",
+		len(userIDs),
+	)
 	return userIDs, nil
 }
 
@@ -306,7 +349,13 @@ func (r *repository) GetActiveTeamMembers(
 	teamName string,
 	excludeUserID string,
 ) ([]userModel.User, error) {
-	r.logger.Debugw("GetActiveTeamMembers called", "team_name", teamName, "exclude_user_id", excludeUserID)
+	r.logger.Debugw(
+		"GetActiveTeamMembers called",
+		"team_name",
+		teamName,
+		"exclude_user_id",
+		excludeUserID,
+	)
 
 	var users []userModel.User
 	query := r.db.WithContext(ctx).
@@ -327,12 +376,21 @@ func (r *repository) GetActiveTeamMembers(
 		users = []userModel.User{}
 	}
 
-	r.logger.Debugw("GetActiveTeamMembers completed", "team_name", teamName, "member_count", len(users))
+	r.logger.Debugw(
+		"GetActiveTeamMembers completed",
+		"team_name",
+		teamName,
+		"member_count",
+		len(users),
+	)
 	return users, nil
 }
 
 // GetOpenPRsWithReviewers returns open PRs that have reviewers from the given user IDs.
-func (r *repository) GetOpenPRsWithReviewers(ctx context.Context, reviewerIDs []string) ([]string, error) {
+func (r *repository) GetOpenPRsWithReviewers(
+	ctx context.Context,
+	reviewerIDs []string,
+) ([]string, error) {
 	r.logger.Debugw("GetOpenPRsWithReviewers called", "reviewer_count", len(reviewerIDs))
 
 	if len(reviewerIDs) == 0 {
@@ -344,7 +402,7 @@ func (r *repository) GetOpenPRsWithReviewers(ctx context.Context, reviewerIDs []
 		Table("pull_request_reviewers").
 		Select("DISTINCT pull_request_reviewers.pull_request_id").
 		Joins("JOIN pull_requests ON pull_request_reviewers.pull_request_id = pull_requests.pull_request_id").
-		Where("pull_request_reviewers.user_id IN ? AND pull_requests.status = ?", reviewerIDs, "OPEN").
+		Where("pull_request_reviewers.user_id IN ? AND pull_requests.status = ?", reviewerIDs, pullrequestModel.StatusOPEN).
 		Pluck("pull_request_reviewers.pull_request_id", &prIDs).Error
 
 	if err != nil {
@@ -362,7 +420,10 @@ func (r *repository) GetOpenPRsWithReviewers(ctx context.Context, reviewerIDs []
 
 // GetOpenPRsWithAuthors returns open PRs with their authors for given reviewer IDs.
 // Returns map[prID]authorID.
-func (r *repository) GetOpenPRsWithAuthors(ctx context.Context, reviewerIDs []string) (map[string]string, error) {
+func (r *repository) GetOpenPRsWithAuthors(
+	ctx context.Context,
+	reviewerIDs []string,
+) (map[string]string, error) {
 	r.logger.Debugw("GetOpenPRsWithAuthors called", "reviewer_count", len(reviewerIDs))
 
 	if len(reviewerIDs) == 0 {
@@ -379,7 +440,7 @@ func (r *repository) GetOpenPRsWithAuthors(ctx context.Context, reviewerIDs []st
 		Table("pull_request_reviewers").
 		Select("DISTINCT pull_request_reviewers.pull_request_id, pull_requests.author_id").
 		Joins("JOIN pull_requests ON pull_request_reviewers.pull_request_id = pull_requests.pull_request_id").
-		Where("pull_request_reviewers.user_id IN ? AND pull_requests.status = ?", reviewerIDs, "OPEN").
+		Where("pull_request_reviewers.user_id IN ? AND pull_requests.status = ?", reviewerIDs, pullrequestModel.StatusOPEN).
 		Scan(&prAuthors).Error
 
 	if err != nil {

@@ -1,8 +1,28 @@
 package model
 
 import (
+	"errors"
 	"time"
 )
+
+// PR status constants.
+const (
+	// StatusOPEN represents an open pull request.
+	StatusOPEN = "OPEN"
+	// StatusMERGED represents a merged pull request.
+	StatusMERGED = "MERGED"
+)
+
+// MaxReviewersPerPR is the maximum number of reviewers allowed per pull request.
+const MaxReviewersPerPR = 2
+
+// ValidateStatus validates that the status is one of the allowed values.
+func ValidateStatus(status string) error {
+	if status != StatusOPEN && status != StatusMERGED {
+		return errors.New("invalid status: must be OPEN or MERGED")
+	}
+	return nil
+}
 
 // PullRequest represents a pull request entity in the system.
 // Matches the pull_requests table schema.

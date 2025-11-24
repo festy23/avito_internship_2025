@@ -60,7 +60,7 @@ Table pull_request_reviewers {
   
   Note {
     'CHECK constraints: LENGTH(pull_request_id) BETWEEN 1 AND 255, LENGTH(user_id) BETWEEN 1 AND 255',
-    'Triggers: check_max_reviewers (max 2 reviewers per PR with race condition protection), check_reviewer_not_author (author cannot be reviewer)'
+    'Business rules (max 2 reviewers, author cannot be reviewer) are validated in application service layer, not in database'
   }
 }
 

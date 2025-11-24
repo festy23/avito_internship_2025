@@ -79,7 +79,7 @@ func TestHandler_CreatePullRequest(t *testing.T) {
 			PullRequestID:     "pr-1",
 			PullRequestName:   "Add feature",
 			AuthorID:          "u1",
-			Status:            "OPEN",
+			Status:            pullrequestModel.StatusOPEN,
 			AssignedReviewers: []string{"u2", "u3"},
 		}
 
@@ -192,7 +192,7 @@ func TestHandler_MergePullRequest(t *testing.T) {
 			PullRequestID:     "pr-1",
 			PullRequestName:   "Add feature",
 			AuthorID:          "u1",
-			Status:            "MERGED",
+			Status:            pullrequestModel.StatusMERGED,
 			AssignedReviewers: []string{"u2", "u3"},
 			MergedAt:          "2025-10-24T12:34:56Z",
 		}
@@ -209,7 +209,7 @@ func TestHandler_MergePullRequest(t *testing.T) {
 		var response map[string]pullrequestModel.PullRequestResponse
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		require.NoError(t, err)
-		assert.Equal(t, "MERGED", response["pr"].Status)
+		assert.Equal(t, pullrequestModel.StatusMERGED, response["pr"].Status)
 		assert.NotEmpty(t, response["pr"].MergedAt)
 		mockSvc.AssertExpectations(t)
 	})
@@ -277,7 +277,7 @@ func TestHandler_ReassignReviewer(t *testing.T) {
 				PullRequestID:     "pr-1",
 				PullRequestName:   "Add feature",
 				AuthorID:          "u1",
-				Status:            "OPEN",
+				Status:            pullrequestModel.StatusOPEN,
 				AssignedReviewers: []string{"u3", "u5"},
 			},
 			ReplacedBy: "u5",
@@ -617,7 +617,7 @@ func TestHandler_ReassignReviewer(t *testing.T) {
 			PullRequestID:     "pr-1",
 			PullRequestName:   "Add feature",
 			AuthorID:          "u1",
-			Status:            "MERGED",
+			Status:            pullrequestModel.StatusMERGED,
 			AssignedReviewers: []string{"u2"},
 			MergedAt:          "2025-10-24T12:34:56Z",
 		}
@@ -634,7 +634,7 @@ func TestHandler_ReassignReviewer(t *testing.T) {
 		var response map[string]pullrequestModel.PullRequestResponse
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		require.NoError(t, err)
-		assert.Equal(t, "MERGED", response["pr"].Status)
+		assert.Equal(t, pullrequestModel.StatusMERGED, response["pr"].Status)
 		mockSvc.AssertExpectations(t)
 	})
 
@@ -824,7 +824,7 @@ func TestHandler_ReassignReviewer(t *testing.T) {
 			PullRequestID:     "pr-1",
 			PullRequestName:   "Add feature",
 			AuthorID:          "u1",
-			Status:            "OPEN",
+			Status:            pullrequestModel.StatusOPEN,
 			AssignedReviewers: []string{"u2"},
 		}
 

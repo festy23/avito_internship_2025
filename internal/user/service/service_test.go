@@ -9,36 +9,42 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 
-	"github.com/festy23/avito_internship/internal/user/model"
+	pullrequestRepo "github.com/festy23/avito_internship/internal/pullrequest/repository"
+	teamModel "github.com/festy23/avito_internship/internal/team/model"
+	teamRepo "github.com/festy23/avito_internship/internal/team/repository"
+	userModel "github.com/festy23/avito_internship/internal/user/model"
+	"github.com/festy23/avito_internship/internal/user/repository"
 )
 
 type mockRepository struct {
 	mock.Mock
 }
 
-func (m *mockRepository) GetByID(ctx context.Context, userID string) (*model.User, error) {
+func (m *mockRepository) GetByID(ctx context.Context, userID string) (*userModel.User, error) {
 	args := m.Called(ctx, userID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*model.User), args.Error(1)
+	return args.Get(0).(*userModel.User), args.Error(1)
 }
 
-func (m *mockRepository) UpdateIsActive(ctx context.Context, userID string, isActive bool) (*model.User, error) {
+func (m *mockRepository) UpdateIsActive(ctx context.Context, userID string, isActive bool) (*userModel.User, error) {
 	args := m.Called(ctx, userID, isActive)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*model.User), args.Error(1)
+	return args.Get(0).(*userModel.User), args.Error(1)
 }
 
-func (m *mockRepository) GetAssignedPullRequests(ctx context.Context, userID string) ([]model.PullRequestShort, error) {
+func (m *mockRepository) GetAssignedPullRequests(ctx context.Context, userID string) ([]userModel.PullRequestShort, error) {
 	args := m.Called(ctx, userID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).([]model.PullRequestShort), args.Error(1)
+	return args.Get(0).([]userModel.PullRequestShort), args.Error(1)
 }
 
 func (m *mockRepository) BulkDeactivateTeamMembers(ctx context.Context, teamName string) ([]string, error) {
@@ -64,12 +70,12 @@ func TestService_SetIsActive(t *testing.T) {
 		mockRepo := new(mockRepository)
 		svc := New(mockRepo, zap.NewNop().Sugar())
 
-		req := &model.SetIsActiveRequest{
+		req := &userModel.SetIsActiveRequest{
 			UserID:   "u1",
 			IsActive: false,
 		}
 
-		expectedUser := &model.User{
+		expectedUser := &userModel.User{
 			UserID:   "u1",
 			Username: "Alice",
 			TeamName: "team1",
@@ -91,17 +97,17 @@ func TestService_SetIsActive(t *testing.T) {
 		mockRepo := new(mockRepository)
 		svc := New(mockRepo, zap.NewNop().Sugar())
 
-		req := &model.SetIsActiveRequest{
+		req := &userModel.SetIsActiveRequest{
 			UserID:   "nonexistent",
 			IsActive: false,
 		}
 
-		mockRepo.On("UpdateIsActive", ctx, "nonexistent", false).Return(nil, model.ErrUserNotFound)
+		mockRepo.On("UpdateIsActive", ctx, "nonexistent", false).Return(nil, userModel.ErrUserNotFound)
 
 		resp, err := svc.SetIsActive(ctx, req)
 
 		assert.Nil(t, resp)
-		assert.ErrorIs(t, err, model.ErrUserNotFound)
+		assert.ErrorIs(t, err, userModel.ErrUserNotFound)
 		mockRepo.AssertExpectations(t)
 	})
 
@@ -109,7 +115,7 @@ func TestService_SetIsActive(t *testing.T) {
 		mockRepo := new(mockRepository)
 		svc := New(mockRepo, zap.NewNop().Sugar())
 
-		req := &model.SetIsActiveRequest{
+		req := &userModel.SetIsActiveRequest{
 			UserID:   "",
 			IsActive: false,
 		}
@@ -117,7 +123,7 @@ func TestService_SetIsActive(t *testing.T) {
 		resp, err := svc.SetIsActive(ctx, req)
 
 		assert.Nil(t, resp)
-		assert.ErrorIs(t, err, model.ErrUserNotFound)
+		assert.ErrorIs(t, err, userModel.ErrUserNotFound)
 		mockRepo.AssertNotCalled(t, "UpdateIsActive")
 	})
 
@@ -125,7 +131,7 @@ func TestService_SetIsActive(t *testing.T) {
 		mockRepo := new(mockRepository)
 		svc := New(mockRepo, zap.NewNop().Sugar())
 
-		req := &model.SetIsActiveRequest{
+		req := &userModel.SetIsActiveRequest{
 			UserID:   "u1",
 			IsActive: false,
 		}
@@ -148,7 +154,7 @@ func TestService_GetReview(t *testing.T) {
 		mockRepo := new(mockRepository)
 		svc := New(mockRepo, zap.NewNop().Sugar())
 
-		expectedPRs := []model.PullRequestShort{
+		expectedPRs := []userModel.PullRequestShort{
 			{
 				PullRequestID:   "pr-1",
 				PullRequestName: "PR 1",
@@ -179,7 +185,7 @@ func TestService_GetReview(t *testing.T) {
 		mockRepo := new(mockRepository)
 		svc := New(mockRepo, zap.NewNop().Sugar())
 
-		mockRepo.On("GetAssignedPullRequests", ctx, "u1").Return([]model.PullRequestShort{}, nil)
+		mockRepo.On("GetAssignedPullRequests", ctx, "u1").Return([]userModel.PullRequestShort{}, nil)
 
 		resp, err := svc.GetReview(ctx, "u1")
 
@@ -196,7 +202,7 @@ func TestService_GetReview(t *testing.T) {
 		resp, err := svc.GetReview(ctx, "")
 
 		assert.Nil(t, resp)
-		assert.ErrorIs(t, err, model.ErrUserNotFound)
+		assert.ErrorIs(t, err, userModel.ErrUserNotFound)
 		mockRepo.AssertNotCalled(t, "GetAssignedPullRequests")
 	})
 
@@ -212,5 +218,171 @@ func TestService_GetReview(t *testing.T) {
 		assert.Nil(t, resp)
 		assert.ErrorIs(t, err, repoErr)
 		mockRepo.AssertExpectations(t)
+	})
+}
+
+func setupTestDBForBulkDeactivate(t *testing.T) *gorm.DB {
+	t.Helper()
+
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	require.NoError(t, err)
+
+	// Create tables
+	type Team struct {
+		TeamName string `gorm:"primaryKey;column:team_name"`
+	}
+
+	type User struct {
+		UserID   string `gorm:"primaryKey;column:user_id"`
+		Username string `gorm:"column:username;not null"`
+		TeamName string `gorm:"column:team_name;not null"`
+		IsActive bool   `gorm:"column:is_active;not null;default:true"`
+	}
+
+	type PullRequest struct {
+		PullRequestID   string `gorm:"primaryKey;column:pull_request_id"`
+		PullRequestName string `gorm:"column:pull_request_name;not null"`
+		AuthorID        string `gorm:"column:author_id;not null"`
+		Status          string `gorm:"column:status;not null"`
+	}
+
+	type PullRequestReviewer struct {
+		ID            int    `gorm:"primaryKey;autoIncrement"`
+		PullRequestID string `gorm:"column:pull_request_id;not null"`
+		UserID        string `gorm:"column:user_id;not null"`
+	}
+
+	err = db.AutoMigrate(&Team{}, &User{}, &PullRequest{}, &PullRequestReviewer{})
+	require.NoError(t, err)
+
+	return db
+}
+
+func TestService_BulkDeactivateTeamMembers(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("empty team_name", func(t *testing.T) {
+		db := setupTestDBForBulkDeactivate(t)
+		userRepo := repository.New(db, zap.NewNop().Sugar())
+		teamRepoInstance := teamRepo.New(db, zap.NewNop().Sugar())
+		prRepo := pullrequestRepo.New(db, zap.NewNop().Sugar())
+		svc := NewWithDependencies(userRepo, teamRepoInstance, prRepo, db, zap.NewNop().Sugar())
+
+		req := &userModel.BulkDeactivateTeamRequest{
+			TeamName: "",
+		}
+
+		resp, err := svc.BulkDeactivateTeamMembers(ctx, req)
+
+		assert.Nil(t, resp)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "team_name is required")
+	})
+
+	t.Run("team not found", func(t *testing.T) {
+		db := setupTestDBForBulkDeactivate(t)
+		userRepo := repository.New(db, zap.NewNop().Sugar())
+		teamRepoInstance := teamRepo.New(db, zap.NewNop().Sugar())
+		prRepo := pullrequestRepo.New(db, zap.NewNop().Sugar())
+		svc := NewWithDependencies(userRepo, teamRepoInstance, prRepo, db, zap.NewNop().Sugar())
+
+		req := &userModel.BulkDeactivateTeamRequest{
+			TeamName: "nonexistent",
+		}
+
+		resp, err := svc.BulkDeactivateTeamMembers(ctx, req)
+
+		assert.Nil(t, resp)
+		assert.Error(t, err)
+		assert.True(t, errors.Is(err, teamModel.ErrTeamNotFound))
+	})
+
+	t.Run("success - no active members", func(t *testing.T) {
+		db := setupTestDBForBulkDeactivate(t)
+		userRepo := repository.New(db, zap.NewNop().Sugar())
+		teamRepoInstance := teamRepo.New(db, zap.NewNop().Sugar())
+		prRepo := pullrequestRepo.New(db, zap.NewNop().Sugar())
+		svc := NewWithDependencies(userRepo, teamRepoInstance, prRepo, db, zap.NewNop().Sugar())
+
+		// Setup: create team and inactive users
+		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u1", "Alice", "backend", false)
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u2", "Bob", "backend", false)
+
+		req := &userModel.BulkDeactivateTeamRequest{
+			TeamName: "backend",
+		}
+
+		resp, err := svc.BulkDeactivateTeamMembers(ctx, req)
+
+		require.NoError(t, err)
+		assert.NotNil(t, resp)
+		assert.Equal(t, "backend", resp.TeamName)
+		assert.Empty(t, resp.DeactivatedUsers)
+		assert.Equal(t, 0, resp.DeactivatedCount)
+		assert.Equal(t, 0, resp.ReassignedPRCount)
+	})
+
+	t.Run("success - deactivate members with no PRs", func(t *testing.T) {
+		db := setupTestDBForBulkDeactivate(t)
+		userRepo := repository.New(db, zap.NewNop().Sugar())
+		teamRepoInstance := teamRepo.New(db, zap.NewNop().Sugar())
+		prRepo := pullrequestRepo.New(db, zap.NewNop().Sugar())
+		svc := NewWithDependencies(userRepo, teamRepoInstance, prRepo, db, zap.NewNop().Sugar())
+
+		// Setup: create team and active users
+		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u1", "Alice", "backend", true)
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u2", "Bob", "backend", true)
+
+		req := &userModel.BulkDeactivateTeamRequest{
+			TeamName: "backend",
+		}
+
+		resp, err := svc.BulkDeactivateTeamMembers(ctx, req)
+
+		require.NoError(t, err)
+		assert.NotNil(t, resp)
+		assert.Equal(t, "backend", resp.TeamName)
+		assert.Len(t, resp.DeactivatedUsers, 2)
+		assert.Contains(t, resp.DeactivatedUsers, "u1")
+		assert.Contains(t, resp.DeactivatedUsers, "u2")
+		assert.Equal(t, 2, resp.DeactivatedCount)
+		assert.Equal(t, 0, resp.ReassignedPRCount)
+		assert.Empty(t, resp.ReassignedPRs)
+
+		// Verify users are deactivated
+		var user1, user2 userModel.User
+		db.Where("user_id = ?", "u1").First(&user1)
+		db.Where("user_id = ?", "u2").First(&user2)
+		assert.False(t, user1.IsActive)
+		assert.False(t, user2.IsActive)
+	})
+
+	t.Run("success - empty team", func(t *testing.T) {
+		db := setupTestDBForBulkDeactivate(t)
+		userRepo := repository.New(db, zap.NewNop().Sugar())
+		teamRepoInstance := teamRepo.New(db, zap.NewNop().Sugar())
+		prRepo := pullrequestRepo.New(db, zap.NewNop().Sugar())
+		svc := NewWithDependencies(userRepo, teamRepoInstance, prRepo, db, zap.NewNop().Sugar())
+
+		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
+
+		req := &userModel.BulkDeactivateTeamRequest{
+			TeamName: "backend",
+		}
+
+		resp, err := svc.BulkDeactivateTeamMembers(ctx, req)
+
+		require.NoError(t, err)
+		assert.NotNil(t, resp)
+		assert.Equal(t, "backend", resp.TeamName)
+		assert.Empty(t, resp.DeactivatedUsers)
+		assert.Equal(t, 0, resp.DeactivatedCount)
+		assert.Equal(t, 0, resp.ReassignedPRCount)
 	})
 }

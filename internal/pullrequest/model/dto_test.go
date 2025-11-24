@@ -144,7 +144,7 @@ func TestPullRequestResponse_JSONSerialization(t *testing.T) {
 			PullRequestID:     "pr-1",
 			PullRequestName:   "Add feature",
 			AuthorID:          "u1",
-			Status:            "OPEN",
+			Status:            StatusOPEN,
 			AssignedReviewers: []string{"u2", "u3"},
 			CreatedAt:         "2025-01-01T00:00:00Z",
 			MergedAt:          "",
@@ -164,7 +164,7 @@ func TestPullRequestResponse_JSONSerialization(t *testing.T) {
 			PullRequestID:     "pr-1",
 			PullRequestName:   "Fix bug",
 			AuthorID:          "u1",
-			Status:            "MERGED",
+			Status:            StatusMERGED,
 			AssignedReviewers: []string{"u2"},
 			CreatedAt:         "2025-01-01T00:00:00Z",
 			MergedAt:          "2025-01-02T00:00:00Z",
@@ -192,7 +192,7 @@ func TestPullRequestResponse_JSONSerialization(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, "pr-1", resp.PullRequestID)
-		assert.Equal(t, "OPEN", resp.Status)
+		assert.Equal(t, StatusOPEN, resp.Status)
 		assert.Len(t, resp.AssignedReviewers, 2)
 		assert.Equal(t, "2025-01-01T00:00:00Z", resp.CreatedAt)
 	})
@@ -202,7 +202,7 @@ func TestPullRequestResponse_JSONSerialization(t *testing.T) {
 			PullRequestID:     "pr-1",
 			PullRequestName:   "Solo PR",
 			AuthorID:          "u1",
-			Status:            "OPEN",
+			Status:            StatusOPEN,
 			AssignedReviewers: []string{},
 		}
 
@@ -220,7 +220,7 @@ func TestReassignReviewerResponse_JSONSerialization(t *testing.T) {
 				PullRequestID:     "pr-1",
 				PullRequestName:   "Add feature",
 				AuthorID:          "u1",
-				Status:            "OPEN",
+				Status:            StatusOPEN,
 				AssignedReviewers: []string{"u2", "u4"},
 			},
 			ReplacedBy: "u4",
@@ -316,7 +316,7 @@ func TestDTOs_EdgeCases(t *testing.T) {
 			PullRequestID:     "pr-1",
 			PullRequestName:   "Big PR",
 			AuthorID:          "u0",
-			Status:            "OPEN",
+			Status:            StatusOPEN,
 			AssignedReviewers: reviewers,
 		}
 
@@ -359,7 +359,7 @@ func BenchmarkPullRequestResponse_Marshal(b *testing.B) {
 		PullRequestID:     "pr-1",
 		PullRequestName:   "Add feature",
 		AuthorID:          "u1",
-		Status:            "OPEN",
+		Status:            StatusOPEN,
 		AssignedReviewers: []string{"u2", "u3"},
 		CreatedAt:         "2025-01-01T00:00:00Z",
 	}

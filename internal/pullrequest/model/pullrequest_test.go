@@ -33,7 +33,7 @@ func TestPullRequest_Fields(t *testing.T) {
 			PullRequestID:   "pr-1",
 			PullRequestName: "Add feature",
 			AuthorID:        "u1",
-			Status:          "OPEN",
+			Status:          StatusOPEN,
 			CreatedAt:       now,
 			MergedAt:        &mergedAt,
 		}
@@ -41,7 +41,7 @@ func TestPullRequest_Fields(t *testing.T) {
 		assert.Equal(t, "pr-1", pr.PullRequestID)
 		assert.Equal(t, "Add feature", pr.PullRequestName)
 		assert.Equal(t, "u1", pr.AuthorID)
-		assert.Equal(t, "OPEN", pr.Status)
+		assert.Equal(t, StatusOPEN, pr.Status)
 		assert.Equal(t, now, pr.CreatedAt)
 		require.NotNil(t, pr.MergedAt)
 		assert.Equal(t, mergedAt, *pr.MergedAt)
@@ -56,11 +56,11 @@ func TestPullRequest_Fields(t *testing.T) {
 	})
 
 	t.Run("pull request with different statuses", func(t *testing.T) {
-		openPR := PullRequest{Status: "OPEN"}
-		assert.Equal(t, "OPEN", openPR.Status)
+		openPR := PullRequest{Status: StatusOPEN}
+		assert.Equal(t, StatusOPEN, openPR.Status)
 
-		mergedPR := PullRequest{Status: "MERGED"}
-		assert.Equal(t, "MERGED", mergedPR.Status)
+		mergedPR := PullRequest{Status: StatusMERGED}
+		assert.Equal(t, StatusMERGED, mergedPR.Status)
 	})
 }
 
@@ -96,7 +96,7 @@ func TestPullRequest_GORMIntegration(t *testing.T) {
 			PullRequestID:   "pr-1",
 			PullRequestName: "Add feature",
 			AuthorID:        "u1",
-			Status:          "OPEN",
+			Status:          StatusOPEN,
 		}
 
 		err := db.Create(pr).Error
@@ -114,7 +114,7 @@ func TestPullRequest_GORMIntegration(t *testing.T) {
 			PullRequestID:   "pr-2",
 			PullRequestName: "Fix bug",
 			AuthorID:        "u2",
-			Status:          "MERGED",
+			Status:          StatusMERGED,
 			MergedAt:        &now,
 		}
 
@@ -125,19 +125,19 @@ func TestPullRequest_GORMIntegration(t *testing.T) {
 		err = db.First(&retrieved, "pull_request_id = ?", "pr-2").Error
 		require.NoError(t, err)
 
-		assert.Equal(t, "MERGED", retrieved.Status)
+		assert.Equal(t, StatusMERGED, retrieved.Status)
 		require.NotNil(t, retrieved.MergedAt)
 	})
 
 	t.Run("pull_request_id is primary key", func(t *testing.T) {
 		db := setupTestDB(t)
 
-		pr1 := &PullRequest{PullRequestID: "pr-1", PullRequestName: "Feature", AuthorID: "u1", Status: "OPEN"}
+		pr1 := &PullRequest{PullRequestID: "pr-1", PullRequestName: "Feature", AuthorID: "u1", Status: StatusOPEN}
 		err := db.Create(pr1).Error
 		require.NoError(t, err)
 
 		// Try to create another PR with same ID
-		pr2 := &PullRequest{PullRequestID: "pr-1", PullRequestName: "Another", AuthorID: "u2", Status: "OPEN"}
+		pr2 := &PullRequest{PullRequestID: "pr-1", PullRequestName: "Another", AuthorID: "u2", Status: StatusOPEN}
 		err = db.Create(pr2).Error
 		assert.Error(t, err) // Should fail due to primary key constraint
 	})
@@ -149,7 +149,7 @@ func TestPullRequest_GORMIntegration(t *testing.T) {
 			PullRequestID:   "pr-1",
 			PullRequestName: "Add feature",
 			AuthorID:        "u1",
-			Status:          "OPEN",
+			Status:          StatusOPEN,
 		}
 		err := db.Create(original).Error
 		require.NoError(t, err)
@@ -300,4 +300,52 @@ func BenchmarkPullRequestReviewer_TableName(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = reviewer.TableName()
 	}
+}
+
+func TestValidateStatus(t *testing.T) {
+	t.Run("valid OPEN status", func(t *testing.T) {
+		err := ValidateStatus(StatusOPEN)
+		assert.NoError(t, err)
+	})
+
+	t.Run("valid MERGED status", func(t *testing.T) {
+		err := ValidateStatus(StatusMERGED)
+		assert.NoError(t, err)
+	})
+
+	t.Run("invalid status - empty string", func(t *testing.T) {
+		err := ValidateStatus("")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid status")
+	})
+
+	t.Run("invalid status - random string", func(t *testing.T) {
+		err := ValidateStatus("INVALID")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid status")
+	})
+
+	t.Run("invalid status - lowercase", func(t *testing.T) {
+		err := ValidateStatus("open")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid status")
+	})
+
+	t.Run("invalid status - merged lowercase", func(t *testing.T) {
+		err := ValidateStatus("merged")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid status")
+	})
+
+	t.Run("invalid status - partial match", func(t *testing.T) {
+		err := ValidateStatus("OPENED")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid status")
+	})
+
+	t.Run("invalid status - special characters", func(t *testing.T) {
+		err := ValidateStatus("OPEN'; DROP TABLE")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid status")
+	})
 }

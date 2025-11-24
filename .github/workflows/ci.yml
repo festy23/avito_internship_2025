@@ -46,11 +46,19 @@ jobs:
       - name: Download dependencies
         run: go mod download
       
-      - name: Run unit tests
-        run: go test ./... -v -count=1
+      - name: Run tests with coverage
+        run: go test -coverprofile=coverage.out -v -count=1 ./...
       
-      - name: Generate coverage report
-        run: go test -coverprofile=coverage.out ./...
+      - name: Check coverage threshold
+        run: |
+          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+          echo "Coverage: ${COVERAGE}%"
+          # Extract integer part for comparison (e.g., "70.5" -> "70")
+          COVERAGE_INT=$(echo "$COVERAGE" | cut -d. -f1)
+          if [ "$COVERAGE_INT" -lt 70 ]; then
+            echo "Coverage ${COVERAGE}% is below threshold 70%"
+            exit 1
+          fi
       
       - name: Upload coverage to artifacts
         uses: actions/upload-artifact@v4
@@ -107,6 +115,16 @@ jobs:
             echo "Waiting for PostgreSQL..."
             sleep 1
           done
+      
+      - name: Install golang-migrate
+        run: |
+          curl -L https://github.com/golang-migrate/migrate/releases/download/v4.17.0/migrate.linux-amd64.tar.gz | tar xvz
+          sudo mv migrate /usr/local/bin/migrate
+      
+      - name: Apply migrations
+        run: |
+          migrate -path migrations -database "postgres://test:test@localhost:5432/test_db?sslmode=disable" up
+        continue-on-error: true
       
       - name: Run integration tests
         run: go test -tags=integration ./tests/integration/... -v

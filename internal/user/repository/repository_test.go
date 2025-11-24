@@ -383,3 +383,97 @@ func TestRepository_GetAssignedPullRequests_Extended(t *testing.T) {
 		assert.Equal(t, "pr-1", prs[2].PullRequestID)
 	})
 }
+
+func TestRepository_BulkDeactivateTeamMembers(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("success - deactivate active members", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u1", "Alice", "backend", true)
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u2", "Bob", "backend", true)
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u3", "Charlie", "frontend", true) // Different team
+
+		deactivatedIDs, err := repo.BulkDeactivateTeamMembers(ctx, "backend")
+
+		require.NoError(t, err)
+		assert.Len(t, deactivatedIDs, 2)
+		assert.Contains(t, deactivatedIDs, "u1")
+		assert.Contains(t, deactivatedIDs, "u2")
+		assert.NotContains(t, deactivatedIDs, "u3")
+
+		// Verify users are deactivated
+		var user1, user2, user3 testUser
+		db.Where("user_id = ?", "u1").First(&user1)
+		db.Where("user_id = ?", "u2").First(&user2)
+		db.Where("user_id = ?", "u3").First(&user3)
+		assert.False(t, user1.IsActive)
+		assert.False(t, user2.IsActive)
+		assert.True(t, user3.IsActive) // Should remain active
+	})
+
+	t.Run("success - no active members", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u1", "Alice", "backend", false)
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u2", "Bob", "backend", false)
+
+		deactivatedIDs, err := repo.BulkDeactivateTeamMembers(ctx, "backend")
+
+		require.NoError(t, err)
+		assert.Empty(t, deactivatedIDs)
+	})
+
+	t.Run("success - empty team", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
+
+		deactivatedIDs, err := repo.BulkDeactivateTeamMembers(ctx, "backend")
+
+		require.NoError(t, err)
+		assert.Empty(t, deactivatedIDs)
+	})
+
+	t.Run("success - mixed active and inactive", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u1", "Alice", "backend", true)
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u2", "Bob", "backend", false) // Already inactive
+		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+			"u3", "Charlie", "backend", true)
+
+		deactivatedIDs, err := repo.BulkDeactivateTeamMembers(ctx, "backend")
+
+		require.NoError(t, err)
+		assert.Len(t, deactivatedIDs, 2)
+		assert.Contains(t, deactivatedIDs, "u1")
+		assert.Contains(t, deactivatedIDs, "u3")
+		assert.NotContains(t, deactivatedIDs, "u2")
+
+		// Verify only active users were deactivated
+		var user2 testUser
+		db.Where("user_id = ?", "u2").First(&user2)
+		assert.False(t, user2.IsActive) // Should remain false
+	})
+
+	t.Run("success - team does not exist", func(t *testing.T) {
+		db := setupTestDB(t)
+		repo := New(db, zap.NewNop().Sugar())
+
+		deactivatedIDs, err := repo.BulkDeactivateTeamMembers(ctx, "nonexistent")
+
+		require.NoError(t, err)
+		assert.Empty(t, deactivatedIDs)
+	})
+}

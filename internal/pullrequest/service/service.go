@@ -115,6 +115,8 @@ func (s *service) validateCreateRequest(req *pullrequestModel.CreatePullRequestR
 }
 
 // createPRInTransaction creates PR and assigns reviewers within a transaction.
+//
+//nolint:gocognit // Complex business logic with multiple validation steps
 func (s *service) createPRInTransaction(
 	ctx context.Context,
 	tx *gorm.DB,
@@ -191,6 +193,8 @@ func (s *service) createPRInTransaction(
 }
 
 // MergePullRequest marks a pull request as MERGED (idempotent operation).
+//
+//nolint:gocognit // Complex business logic with transaction handling
 func (s *service) MergePullRequest(
 	ctx context.Context,
 	req *pullrequestModel.MergePullRequestRequest,
@@ -326,7 +330,7 @@ func (s *service) validateReassignRequest(req *pullrequestModel.ReassignReviewer
 
 // reassignInTransaction performs reassignment within a transaction.
 //
-//nolint:gocognit,gocyclo // Complex business logic with multiple validation steps
+//nolint:funlen,gocognit,gocyclo // Complex business logic with multiple validation steps
 func (s *service) reassignInTransaction(
 	ctx context.Context,
 	tx *gorm.DB,

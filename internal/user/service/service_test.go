@@ -31,7 +31,11 @@ func (m *mockRepository) GetByID(ctx context.Context, userID string) (*userModel
 	return args.Get(0).(*userModel.User), args.Error(1)
 }
 
-func (m *mockRepository) UpdateIsActive(ctx context.Context, userID string, isActive bool) (*userModel.User, error) {
+func (m *mockRepository) UpdateIsActive(
+	ctx context.Context,
+	userID string,
+	isActive bool,
+) (*userModel.User, error) {
 	args := m.Called(ctx, userID, isActive)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -39,7 +43,10 @@ func (m *mockRepository) UpdateIsActive(ctx context.Context, userID string, isAc
 	return args.Get(0).(*userModel.User), args.Error(1)
 }
 
-func (m *mockRepository) GetAssignedPullRequests(ctx context.Context, userID string) ([]userModel.PullRequestShort, error) {
+func (m *mockRepository) GetAssignedPullRequests(
+	ctx context.Context,
+	userID string,
+) ([]userModel.PullRequestShort, error) {
 	args := m.Called(ctx, userID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -47,7 +54,10 @@ func (m *mockRepository) GetAssignedPullRequests(ctx context.Context, userID str
 	return args.Get(0).([]userModel.PullRequestShort), args.Error(1)
 }
 
-func (m *mockRepository) BulkDeactivateTeamMembers(ctx context.Context, teamName string) ([]string, error) {
+func (m *mockRepository) BulkDeactivateTeamMembers(
+	ctx context.Context,
+	teamName string,
+) ([]string, error) {
 	args := m.Called(ctx, teamName)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -102,7 +112,8 @@ func TestService_SetIsActive(t *testing.T) {
 			IsActive: false,
 		}
 
-		mockRepo.On("UpdateIsActive", ctx, "nonexistent", false).Return(nil, userModel.ErrUserNotFound)
+		mockRepo.On("UpdateIsActive", ctx, "nonexistent", false).
+			Return(nil, userModel.ErrUserNotFound)
 
 		resp, err := svc.SetIsActive(ctx, req)
 
@@ -185,7 +196,8 @@ func TestService_GetReview(t *testing.T) {
 		mockRepo := new(mockRepository)
 		svc := New(mockRepo, zap.NewNop().Sugar())
 
-		mockRepo.On("GetAssignedPullRequests", ctx, "u1").Return([]userModel.PullRequestShort{}, nil)
+		mockRepo.On("GetAssignedPullRequests", ctx, "u1").
+			Return([]userModel.PullRequestShort{}, nil)
 
 		resp, err := svc.GetReview(ctx, "u1")
 

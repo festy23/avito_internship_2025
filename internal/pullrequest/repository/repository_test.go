@@ -265,50 +265,73 @@ func TestRepository_AssignReviewer(t *testing.T) {
 		assert.Equal(t, "u2", reviewer.UserID)
 	})
 
-	t.Run("can assign reviewer even if already 2 exist (business rule validation is in service layer)", func(t *testing.T) {
-		db := setupTestDB(t)
-		repo := New(db, zap.NewNop().Sugar())
-		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
-		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
-			"u1", "Alice", "backend", true)
-		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
-			"u2", "Bob", "backend", true)
-		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
-			"u3", "Charlie", "backend", true)
-		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
-			"u4", "David", "backend", true)
-		db.Exec(
-			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
-			"pr-1",
-			"Add feature",
-			"u1",
-			pullrequestModel.StatusOPEN,
-		)
-		db.Exec(
-			"INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)",
-			"pr-1",
-			"u2",
-		)
-		db.Exec(
-			"INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)",
-			"pr-1",
-			"u3",
-		)
+	t.Run(
+		"can assign reviewer even if already 2 exist (business rule validation is in service layer)",
+		func(t *testing.T) {
+			db := setupTestDB(t)
+			repo := New(db, zap.NewNop().Sugar())
+			db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
+			db.Exec(
+				"INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+				"u1",
+				"Alice",
+				"backend",
+				true,
+			)
+			db.Exec(
+				"INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+				"u2",
+				"Bob",
+				"backend",
+				true,
+			)
+			db.Exec(
+				"INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+				"u3",
+				"Charlie",
+				"backend",
+				true,
+			)
+			db.Exec(
+				"INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+				"u4",
+				"David",
+				"backend",
+				true,
+			)
+			db.Exec(
+				"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
+				"pr-1",
+				"Add feature",
+				"u1",
+				pullrequestModel.StatusOPEN,
+			)
+			db.Exec(
+				"INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)",
+				"pr-1",
+				"u2",
+			)
+			db.Exec(
+				"INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)",
+				"pr-1",
+				"u3",
+			)
 
-		// Repository doesn't validate business rules - it just assigns reviewer
-		// Business rule validation (max 2 reviewers) is done in service layer
-		err := repo.AssignReviewer(ctx, "pr-1", "u4")
+			// Repository doesn't validate business rules - it just assigns reviewer
+			// Business rule validation (max 2 reviewers) is done in service layer
+			err := repo.AssignReviewer(ctx, "pr-1", "u4")
 
-		// Should succeed from repository perspective (no error)
-		// Business rule validation happens in service layer
-		require.NoError(t, err)
+			// Should succeed from repository perspective (no error)
+			// Business rule validation happens in service layer
+			require.NoError(t, err)
 
-		// Verify reviewer was assigned
-		var reviewer testPullRequestReviewer
-		db.Where("pull_request_id = ? AND user_id = ?", "pr-1", "u4").First(&reviewer)
-		assert.Equal(t, "pr-1", reviewer.PullRequestID)
-		assert.Equal(t, "u4", reviewer.UserID)
-	})
+			// Verify reviewer was assigned
+			var reviewer testPullRequestReviewer
+			db.Where("pull_request_id = ? AND user_id = ?", "pr-1", "u4").First(&reviewer)
+			assert.Equal(t, "pr-1", reviewer.PullRequestID)
+			assert.Equal(t, "u4", reviewer.UserID)
+		},
+	)
 
 	t.Run("duplicate reviewer", func(t *testing.T) {
 		db := setupTestDB(t)
@@ -644,7 +667,10 @@ func TestRepository_Create_Extended(t *testing.T) {
 			"u1", "Alice", "backend", true)
 		db.Exec(
 			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
-			"pr-1", "Existing", "u1", pullrequestModel.StatusOPEN,
+			"pr-1",
+			"Existing",
+			"u1",
+			pullrequestModel.StatusOPEN,
 		)
 
 		pr, err := repo.Create(ctx, "pr-1", "Duplicate", "u1")
@@ -677,7 +703,11 @@ func TestRepository_GetByID_Extended(t *testing.T) {
 		db.Exec(
 			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status, merged_at) "+
 				"VALUES (?, ?, ?, ?, ?)",
-			"pr-1", "Merged PR", "u1", pullrequestModel.StatusMERGED, mergedAt,
+			"pr-1",
+			"Merged PR",
+			"u1",
+			pullrequestModel.StatusMERGED,
+			mergedAt,
 		)
 
 		pr, err := repo.GetByID(ctx, "pr-1")
@@ -698,7 +728,10 @@ func TestRepository_UpdateStatus_Extended(t *testing.T) {
 			"u1", "Alice", "backend", true)
 		db.Exec(
 			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
-			"pr-1", "Add feature", "u1", pullrequestModel.StatusOPEN,
+			"pr-1",
+			"Add feature",
+			"u1",
+			pullrequestModel.StatusOPEN,
 		)
 
 		err := repo.UpdateStatus(ctx, "pr-1", pullrequestModel.StatusOPEN, nil)
@@ -717,7 +750,10 @@ func TestRepository_UpdateStatus_Extended(t *testing.T) {
 			"u1", "Alice", "backend", true)
 		db.Exec(
 			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
-			"pr-1", "Add feature", "u1", pullrequestModel.StatusOPEN,
+			"pr-1",
+			"Add feature",
+			"u1",
+			pullrequestModel.StatusOPEN,
 		)
 		sqlDB, _ := db.DB()
 		sqlDB.Close()
@@ -730,36 +766,70 @@ func TestRepository_UpdateStatus_Extended(t *testing.T) {
 func TestRepository_AssignReviewer_Extended(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("assign when already at limit - repository allows it (business rule in service)", func(t *testing.T) {
-		db := setupTestDB(t)
-		repo := New(db, zap.NewNop().Sugar())
-		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
-		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
-			"u1", "Alice", "backend", true)
-		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
-			"u2", "Bob", "backend", true)
-		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
-			"u3", "Charlie", "backend", true)
-		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
-			"u4", "David", "backend", true)
-		db.Exec(
-			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
-			"pr-1", "Add feature", "u1", pullrequestModel.StatusOPEN,
-		)
-		db.Exec("INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)", "pr-1", "u2")
-		db.Exec("INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)", "pr-1", "u3")
+	t.Run(
+		"assign when already at limit - repository allows it (business rule in service)",
+		func(t *testing.T) {
+			db := setupTestDB(t)
+			repo := New(db, zap.NewNop().Sugar())
+			db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
+			db.Exec(
+				"INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+				"u1",
+				"Alice",
+				"backend",
+				true,
+			)
+			db.Exec(
+				"INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+				"u2",
+				"Bob",
+				"backend",
+				true,
+			)
+			db.Exec(
+				"INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+				"u3",
+				"Charlie",
+				"backend",
+				true,
+			)
+			db.Exec(
+				"INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
+				"u4",
+				"David",
+				"backend",
+				true,
+			)
+			db.Exec(
+				"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
+				"pr-1",
+				"Add feature",
+				"u1",
+				pullrequestModel.StatusOPEN,
+			)
+			db.Exec(
+				"INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)",
+				"pr-1",
+				"u2",
+			)
+			db.Exec(
+				"INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)",
+				"pr-1",
+				"u3",
+			)
 
-		// Repository doesn't validate business rules - it just assigns reviewer
-		// Business rule validation (max 2 reviewers) is done in service layer
-		err := repo.AssignReviewer(ctx, "pr-1", "u4")
-		require.NoError(t, err) // Repository allows it
+			// Repository doesn't validate business rules - it just assigns reviewer
+			// Business rule validation (max 2 reviewers) is done in service layer
+			err := repo.AssignReviewer(ctx, "pr-1", "u4")
+			require.NoError(t, err) // Repository allows it
 
-		// Verify reviewer was assigned
-		var reviewer testPullRequestReviewer
-		db.Where("pull_request_id = ? AND user_id = ?", "pr-1", "u4").First(&reviewer)
-		assert.Equal(t, "pr-1", reviewer.PullRequestID)
-		assert.Equal(t, "u4", reviewer.UserID)
-	})
+			// Verify reviewer was assigned
+			var reviewer testPullRequestReviewer
+			db.Where("pull_request_id = ? AND user_id = ?", "pr-1", "u4").First(&reviewer)
+			assert.Equal(t, "pr-1", reviewer.PullRequestID)
+			assert.Equal(t, "u4", reviewer.UserID)
+		},
+	)
 
 	t.Run("duplicate reviewer via database constraint", func(t *testing.T) {
 		db := setupTestDB(t)
@@ -771,12 +841,19 @@ func TestRepository_AssignReviewer_Extended(t *testing.T) {
 			"u2", "Bob", "backend", true)
 		db.Exec(
 			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
-			"pr-1", "Add feature", "u1", pullrequestModel.StatusOPEN,
+			"pr-1",
+			"Add feature",
+			"u1",
+			pullrequestModel.StatusOPEN,
 		)
 		// Create unique constraint manually
 		db.Exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_reviewer " +
 			"ON pull_request_reviewers(pull_request_id, user_id)")
-		db.Exec("INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)", "pr-1", "u2")
+		db.Exec(
+			"INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)",
+			"pr-1",
+			"u2",
+		)
 
 		err := repo.AssignReviewer(ctx, "pr-1", "u2")
 		assert.Error(t, err)
@@ -795,7 +872,10 @@ func TestRepository_RemoveReviewer_Extended(t *testing.T) {
 			"u1", "Alice", "backend", true)
 		db.Exec(
 			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
-			"pr-1", "Add feature", "u1", pullrequestModel.StatusOPEN,
+			"pr-1",
+			"Add feature",
+			"u1",
+			pullrequestModel.StatusOPEN,
 		)
 
 		// Removing non-existent reviewer returns error
@@ -812,9 +892,16 @@ func TestRepository_RemoveReviewer_Extended(t *testing.T) {
 			"u1", "Alice", "backend", true)
 		db.Exec(
 			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
-			"pr-1", "Add feature", "u1", pullrequestModel.StatusOPEN,
+			"pr-1",
+			"Add feature",
+			"u1",
+			pullrequestModel.StatusOPEN,
 		)
-		db.Exec("INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)", "pr-1", "u2")
+		db.Exec(
+			"INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)",
+			"pr-1",
+			"u2",
+		)
 		sqlDB, _ := db.DB()
 		sqlDB.Close()
 
@@ -838,10 +925,21 @@ func TestRepository_GetReviewers_Extended(t *testing.T) {
 			"u3", "Charlie", "backend", true)
 		db.Exec(
 			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
-			"pr-1", "Add feature", "u1", pullrequestModel.StatusOPEN,
+			"pr-1",
+			"Add feature",
+			"u1",
+			pullrequestModel.StatusOPEN,
 		)
-		db.Exec("INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)", "pr-1", "u2")
-		db.Exec("INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)", "pr-1", "u3")
+		db.Exec(
+			"INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)",
+			"pr-1",
+			"u2",
+		)
+		db.Exec(
+			"INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)",
+			"pr-1",
+			"u3",
+		)
 
 		reviewers, err := repo.GetReviewers(ctx, "pr-1")
 		require.NoError(t, err)

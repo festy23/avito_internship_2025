@@ -153,7 +153,15 @@ func (r *repository) UpdateStatus(
 ) error {
 	// Validate status before updating
 	if err := pullrequestModel.ValidateStatus(status); err != nil {
-		r.logger.Debugw("UpdateStatus invalid status", "pull_request_id", prID, "status", status, "error", err)
+		r.logger.Debugw(
+			"UpdateStatus invalid status",
+			"pull_request_id",
+			prID,
+			"status",
+			status,
+			"error",
+			err,
+		)
 		return err
 	}
 
@@ -175,7 +183,13 @@ func (r *repository) UpdateStatus(
 		Updates(updates)
 
 	if result.Error != nil {
-		r.logger.Errorw("UpdateStatus database error", "pull_request_id", prID, "error", result.Error)
+		r.logger.Errorw(
+			"UpdateStatus database error",
+			"pull_request_id",
+			prID,
+			"error",
+			result.Error,
+		)
 		return result.Error
 	}
 
@@ -201,12 +215,23 @@ func (r *repository) AssignReviewer(ctx context.Context, prID, userID string) er
 
 	if err == nil {
 		// Reviewer already exists
-		r.logger.Debugw("AssignReviewer duplicate reviewer", "pull_request_id", prID, "user_id", userID)
+		r.logger.Debugw(
+			"AssignReviewer duplicate reviewer",
+			"pull_request_id",
+			prID,
+			"user_id",
+			userID,
+		)
 		return pullrequestModel.ErrReviewerAlreadyAssigned
 	}
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		// Database error (not just "not found")
-		r.logger.Errorw("AssignReviewer database error when checking existing", "pull_request_id", prID, "user_id", userID, "error", err)
+		r.logger.Errorw(
+			"AssignReviewer database error when checking existing",
+			"pull_request_id", prID,
+			"user_id", userID,
+			"error", err,
+		)
 		return err
 	}
 
@@ -221,12 +246,26 @@ func (r *repository) AssignReviewer(ctx context.Context, prID, userID string) er
 	if err != nil {
 		// Check for unique constraint violation (in case check above didn't catch it)
 		if errors.Is(err, gorm.ErrDuplicatedKey) || isDuplicateError(err) {
-			r.logger.Debugw("AssignReviewer duplicate key constraint on create", "pull_request_id", prID, "user_id", userID)
+			r.logger.Debugw(
+				"AssignReviewer duplicate key constraint on create",
+				"pull_request_id",
+				prID,
+				"user_id",
+				userID,
+			)
 			return pullrequestModel.ErrReviewerAlreadyAssigned
 		}
 		// Business rules are validated in service layer before calling this method
 		// Any other error is a technical database error
-		r.logger.Errorw("AssignReviewer database error", "pull_request_id", prID, "user_id", userID, "error", err)
+		r.logger.Errorw(
+			"AssignReviewer database error",
+			"pull_request_id",
+			prID,
+			"user_id",
+			userID,
+			"error",
+			err,
+		)
 		return err
 	}
 
@@ -256,7 +295,13 @@ func (r *repository) RemoveReviewer(ctx context.Context, prID, userID string) er
 	}
 
 	if result.RowsAffected == 0 {
-		r.logger.Debugw("RemoveReviewer reviewer not assigned", "pull_request_id", prID, "user_id", userID)
+		r.logger.Debugw(
+			"RemoveReviewer reviewer not assigned",
+			"pull_request_id",
+			prID,
+			"user_id",
+			userID,
+		)
 		return pullrequestModel.ErrReviewerNotAssigned
 	}
 
@@ -288,7 +333,13 @@ func (r *repository) GetReviewers(ctx context.Context, prID string) ([]string, e
 		userIDs = []string{}
 	}
 
-	r.logger.Debugw("GetReviewers completed", "pull_request_id", prID, "reviewer_count", len(userIDs))
+	r.logger.Debugw(
+		"GetReviewers completed",
+		"pull_request_id",
+		prID,
+		"reviewer_count",
+		len(userIDs),
+	)
 	return userIDs, nil
 }
 
@@ -298,7 +349,13 @@ func (r *repository) GetActiveTeamMembers(
 	teamName string,
 	excludeUserID string,
 ) ([]userModel.User, error) {
-	r.logger.Debugw("GetActiveTeamMembers called", "team_name", teamName, "exclude_user_id", excludeUserID)
+	r.logger.Debugw(
+		"GetActiveTeamMembers called",
+		"team_name",
+		teamName,
+		"exclude_user_id",
+		excludeUserID,
+	)
 
 	var users []userModel.User
 	query := r.db.WithContext(ctx).
@@ -319,12 +376,21 @@ func (r *repository) GetActiveTeamMembers(
 		users = []userModel.User{}
 	}
 
-	r.logger.Debugw("GetActiveTeamMembers completed", "team_name", teamName, "member_count", len(users))
+	r.logger.Debugw(
+		"GetActiveTeamMembers completed",
+		"team_name",
+		teamName,
+		"member_count",
+		len(users),
+	)
 	return users, nil
 }
 
 // GetOpenPRsWithReviewers returns open PRs that have reviewers from the given user IDs.
-func (r *repository) GetOpenPRsWithReviewers(ctx context.Context, reviewerIDs []string) ([]string, error) {
+func (r *repository) GetOpenPRsWithReviewers(
+	ctx context.Context,
+	reviewerIDs []string,
+) ([]string, error) {
 	r.logger.Debugw("GetOpenPRsWithReviewers called", "reviewer_count", len(reviewerIDs))
 
 	if len(reviewerIDs) == 0 {
@@ -354,7 +420,10 @@ func (r *repository) GetOpenPRsWithReviewers(ctx context.Context, reviewerIDs []
 
 // GetOpenPRsWithAuthors returns open PRs with their authors for given reviewer IDs.
 // Returns map[prID]authorID.
-func (r *repository) GetOpenPRsWithAuthors(ctx context.Context, reviewerIDs []string) (map[string]string, error) {
+func (r *repository) GetOpenPRsWithAuthors(
+	ctx context.Context,
+	reviewerIDs []string,
+) (map[string]string, error) {
 	r.logger.Debugw("GetOpenPRsWithAuthors called", "reviewer_count", len(reviewerIDs))
 
 	if len(reviewerIDs) == 0 {

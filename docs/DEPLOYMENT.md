@@ -1,207 +1,94 @@
-# Deployment Guide
-
-Руководство по развертыванию PR Reviewer Assignment Service.
+# Руководство по развертыванию
 
 ## Требования
 
 - Go 1.25.4+
 - PostgreSQL 12+
-- Docker и Docker Compose (для контейнеризованного развертывания)
+- Docker и Docker Compose
 
-## Развертывание через Docker Compose
+## Быстрый старт
 
-Самый простой способ развернуть сервис:
+### Docker Compose
 
 ```bash
 docker-compose up -d
 ```
 
-Сервис будет доступен на порту 8080. PostgreSQL запустится автоматически, миграции применятся при старте приложения.
+Сервис доступен на порту 8080. PostgreSQL запускается автоматически, миграции применяются при старте.
 
-### Проверка работоспособности
+Проверка работоспособности:
 
 ```bash
 curl http://localhost:8080/health
 ```
 
-Ожидаемый ответ:
-```json
-{
-  "status": "healthy",
-  "database": "ok",
-  "timestamp": "2025-11-23T20:00:00Z"
-}
-```
+### Локальное развертывание
 
-## Локальное развертывание
-
-### 1. Установка зависимостей
-
-```bash
-go mod download
-```
-
-### 2. Настройка базы данных
-
-Создайте базу данных PostgreSQL:
-
-```sql
-CREATE DATABASE avito_internship;
-CREATE USER postgres WITH PASSWORD 'postgres';
-GRANT ALL PRIVILEGES ON DATABASE avito_internship TO postgres;
-```
-
-### 3. Настройка переменных окружения
-
-Создайте файл `.env` или экспортируйте переменные:
-
-```bash
-export DB_HOST=localhost
-export DB_USER=postgres
-export DB_PASSWORD=postgres
-export DB_NAME=avito_internship
-export DB_PORT=5432
-export DB_SSLMODE=disable
-export SERVER_PORT=:8080
-export GIN_MODE=release
-```
-
-### 4. Применение миграций
-
-Миграции применяются автоматически при запуске приложения. Если нужно применить вручную:
-
-```bash
-# Миграции находятся в директории migrations/
-# Применяются автоматически через migrate.Up() при старте
-```
-
-### 5. Запуск сервера
-
-```bash
-go run cmd/server/main.go
-```
-
-Или скомпилируйте и запустите:
-
-```bash
-go build -o server cmd/server/main.go
-./server
-```
+1. Установите зависимости: `go mod download`
+2. Настройте переменные окружения (см. раздел "Переменные окружения")
+3. Запустите PostgreSQL: `docker-compose up postgres -d`
+4. Запустите сервер: `go run cmd/server/main.go`
 
 ## Переменные окружения
 
 ### Сервер
 
-| Переменная | Описание | По умолчанию |
-|-----------|----------|--------------|
-| `SERVER_HOST` | Хост сервера | `""` (все интерфейсы) |
-| `SERVER_PORT` | Порт сервера | `:8080` |
-| `SERVER_READ_TIMEOUT` | Таймаут чтения запроса | `10s` |
-| `SERVER_WRITE_TIMEOUT` | Таймаут записи ответа | `10s` |
-| `SERVER_IDLE_TIMEOUT` | Таймаут простоя соединения | `120s` |
-| `GIN_MODE` | Режим Gin | `release` |
+- `SERVER_HOST` - хост сервера (по умолчанию: `""`)
+- `SERVER_PORT` - порт сервера (по умолчанию: `:8080`)
+- `SERVER_READ_TIMEOUT` - таймаут чтения (по умолчанию: `10s`)
+- `SERVER_WRITE_TIMEOUT` - таймаут записи (по умолчанию: `10s`)
+- `SERVER_IDLE_TIMEOUT` - таймаут простоя (по умолчанию: `120s`)
+- `GIN_MODE` - режим Gin (по умолчанию: `release`)
 
 ### База данных
 
-| Переменная | Описание | По умолчанию |
-|-----------|----------|--------------|
-| `DB_HOST` | Хост PostgreSQL | `localhost` |
-| `DB_USER` | Пользователь БД | `postgres` |
-| `DB_PASSWORD` | Пароль БД | `postgres` |
-| `DB_NAME` | Имя БД | `avito_internship` |
-| `DB_PORT` | Порт PostgreSQL | `5432` |
-| `DB_SSLMODE` | Режим SSL | `disable` |
-| `DB_TIMEZONE` | Часовой пояс | `UTC` |
-| `DB_RETRY_MAX_ATTEMPTS` | Максимум попыток подключения | `5` |
-| `DB_RETRY_INITIAL_DELAY` | Начальная задержка между попытками | `1s` |
-| `DB_RETRY_MAX_DELAY` | Максимальная задержка | `30s` |
-| `DB_RETRY_MULTIPLIER` | Множитель задержки | `2.0` |
+- `DB_HOST` - хост PostgreSQL (по умолчанию: `localhost`, в Docker: `postgres`)
+- `DB_USER` - пользователь БД (по умолчанию: `postgres`)
+- `DB_PASSWORD` - пароль БД (по умолчанию: `postgres`)
+- `DB_NAME` - имя БД (по умолчанию: `avito_internship`)
+- `DB_PORT` - порт PostgreSQL (по умолчанию: `5432`)
+- `DB_SSLMODE` - режим SSL (по умолчанию: `disable`)
+- `DB_TIMEZONE` - часовой пояс (по умолчанию: `UTC`)
+
+### Повторные попытки подключения к БД
+
+- `DB_RETRY_MAX_ATTEMPTS` - максимум попыток (по умолчанию: `5`)
+- `DB_RETRY_INITIAL_DELAY` - начальная задержка (по умолчанию: `1s`)
+- `DB_RETRY_MAX_DELAY` - максимальная задержка (по умолчанию: `30s`)
+- `DB_RETRY_MULTIPLIER` - множитель задержки (по умолчанию: `2.0`)
 
 ### Логгер
 
-| Переменная | Описание | По умолчанию |
-|-----------|----------|--------------|
-| `LOG_LEVEL` | Уровень логирования | `info` |
-| `LOG_FORMAT` | Формат логов (`json` или `console`) | `json` |
-| `LOG_OUTPUT` | Вывод логов (`stdout` или `stderr`) | `stdout` |
+- `LOG_LEVEL` - уровень логирования (по умолчанию: `info`)
+- `LOG_FORMAT` - формат логов (`json` или `console`, по умолчанию: `json`)
+- `LOG_OUTPUT` - вывод логов (по умолчанию: `stdout`)
 
 ### Миграции
 
-| Переменная | Описание | По умолчанию |
-|-----------|----------|--------------|
-| `MIGRATIONS_PATH` | Путь к директории с миграциями | `migrations` |
+- `MIGRATIONS_PATH` - путь к директории с миграциями (по умолчанию: `migrations`)
 
 ## Production развертывание
 
 ### Рекомендации
 
-1. **Безопасность**:
-   - Используйте сильные пароли для БД
-   - Включите SSL для подключения к PostgreSQL (`DB_SSLMODE=require`)
-   - Настройте firewall для ограничения доступа к БД
-   - Используйте секреты для хранения паролей (не храните в коде)
+**Безопасность:**
 
-2. **Производительность**:
-   - Настройте connection pool в PostgreSQL
-   - Используйте reverse proxy (nginx, traefik) для балансировки нагрузки
-   - Настройте мониторинг и логирование
+- Используйте сильные пароли для БД
+- Включите SSL для PostgreSQL (`DB_SSLMODE=require`)
+- Настройте firewall для ограничения доступа к БД
+- Используйте секреты для хранения паролей
 
-3. **Надежность**:
-   - Настройте health checks для автоматического перезапуска
-   - Используйте orchestration (Kubernetes, Docker Swarm)
-   - Настройте резервное копирование БД
+**Производительность:**
 
-### Docker Compose для Production
+- Настройте connection pool в PostgreSQL
+- Используйте reverse proxy (nginx, traefik)
+- Настройте мониторинг и логирование
 
-Создайте `docker-compose.prod.yml`:
+**Надежность:**
 
-```yaml
-services:
-  postgres:
-    image: postgres:12-alpine
-    environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_NAME}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - app-network
-    restart: unless-stopped
-
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    environment:
-      DB_HOST: postgres
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_NAME: ${DB_NAME}
-      DB_PORT: "5432"
-      DB_SSLMODE: require
-      GIN_MODE: release
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - app-network
-    restart: unless-stopped
-    ports:
-      - "8080:8080"
-
-volumes:
-  postgres_data:
-
-networks:
-  app-network:
-    driver: bridge
-```
-
-Запуск:
-```bash
-docker-compose -f docker-compose.prod.yml up -d
-```
+- Настройте health checks для автоматического перезапуска
+- Используйте orchestration (Kubernetes, Docker Swarm)
+- Настройте резервное копирование БД
 
 ## Мониторинг
 
@@ -213,37 +100,23 @@ docker-compose -f docker-compose.prod.yml up -d
 GET /health
 ```
 
-Ответ включает:
-- Статус сервиса (`healthy`/`unhealthy`)
-- Статус подключения к БД (`ok`/`unavailable`)
-- Timestamp
+Ответ включает статус сервиса и подключения к БД.
 
 ### Логирование
 
 Логи выводятся в формате JSON (по умолчанию) или console. Уровни логирования:
-- `debug` - детальная отладочная информация
-- `info` - информационные сообщения
-- `warn` - предупреждения
-- `error` - ошибки
+
+- `debug`, `info`, `warn`, `error`
 
 ## Troubleshooting
 
 ### Проблемы с подключением к БД
 
-1. Проверьте, что PostgreSQL запущен:
-   ```bash
-   docker ps | grep postgres
-   ```
+1. Проверьте, что PostgreSQL запущен: `docker ps | grep postgres`
 
-2. Проверьте переменные окружения:
-   ```bash
-   env | grep DB_
-   ```
+2. Проверьте переменные окружения: `env | grep DB_`
 
-3. Проверьте логи:
-   ```bash
-   docker-compose logs app
-   ```
+3. Проверьте логи: `docker-compose logs app`
 
 ### Проблемы с миграциями
 
@@ -263,29 +136,13 @@ export SERVER_PORT=:8081
 
 ## Откат изменений
 
-Для отката миграций используйте файлы `.down.sql` из директории `migrations/`. Применяйте их вручную через psql или другой SQL клиент.
+Для отката миграций используйте файлы `.down.sql` из директории `migrations/`. Применяйте их вручную через psql в обратном порядке.
 
 ## Обновление
 
-1. Остановите сервис:
-   ```bash
-   docker-compose down
-   ```
-
-2. Обновите код:
-   ```bash
-   git pull
-   ```
-
-3. Пересоберите образы:
-   ```bash
-   docker-compose build
-   ```
-
-4. Запустите сервис:
-   ```bash
-   docker-compose up -d
-   ```
+1. Остановите сервис: `docker-compose down`
+2. Обновите код: `git pull`
+3. Пересоберите образы: `docker-compose build`
+4. Запустите сервис: `docker-compose up -d`
 
 Миграции применятся автоматически при старте.
-

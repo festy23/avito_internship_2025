@@ -23,12 +23,16 @@ jobs:
         run: go mod download
       
       - name: Install golangci-lint
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: latest
+        run: |
+          # Install latest version (without specifying version to get truly latest)
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin
+          export PATH=$PATH:$(go env GOPATH)/bin
+          golangci-lint --version
       
       - name: Run linter
-        run: golangci-lint run
+        run: |
+          export PATH=$PATH:$(go env GOPATH)/bin
+          golangci-lint run --timeout=5m
 
   test:
     name: Test

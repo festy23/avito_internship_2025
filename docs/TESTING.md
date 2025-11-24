@@ -1,67 +1,64 @@
-# Testing Documentation
+# Документация по тестированию
 
 ## Обзор
 
-Проект использует три уровня тестирования: unit тесты, integration тесты и E2E тесты. Все тесты проверяют бизнес-логику через API, а не через прямые запросы к базе данных.
-
----
+Проект использует три уровня тестирования: unit тесты, integration тесты и E2E тесты.
 
 ## Unit тесты
 
-**Расположение**: `internal/*/handler/handler_test.go`, `internal/*/service/service_test.go`, `internal/*/repository/repository_test.go`, `internal/*/model/*_test.go`
+### Расположение
 
-**Технологии**:
+- `internal/*/handler/handler_test.go` - тесты HTTP handlers
+- `internal/*/service/service_test.go` - тесты бизнес-логики
+- `internal/*/repository/repository_test.go` - тесты доступа к данным
+- `internal/*/model/*_test.go` - тесты моделей данных
 
-- `testify/mock` для мокирования зависимостей
-- SQLite in-memory для repository тестов
-- `testify/assert` и `testify/require` для проверок
+### Технологии
 
-**Цель**: Проверка изолированных компонентов без внешних зависимостей.
+- `testify/mock` - для мокирования зависимостей
+- `testify/assert` и `testify/require` - для проверок
+- SQLite in-memory - для repository тестов
+- `httptest` - для тестирования HTTP handlers
 
-**Что проверяют**:
+### Что проверяют
 
-- **Handler**: HTTP запросы/ответы, валидация, маппинг ошибок на HTTP коды
-- **Service**: Бизнес-логика с моками repository, правила назначения ревьюеров, транзакции
-- **Repository**: CRUD операции, работа с БД через GORM, ограничения БД
-- **Model**: JSON сериализация, валидация, GORM интеграция, доменные ошибки
+- Handler: HTTP запросы/ответы, валидация, маппинг ошибок
+- Service: бизнес-логика с моками repository, правила назначения ревьюеров
+- Repository: CRUD операции, работа с БД через GORM
+- Model: JSON сериализация, валидация, GORM интеграция
 
-**Запуск**:
+### Запуск
 
 ```bash
-go test ./internal/... -v
+go test ./...
+# или
+make test
 ```
-
----
 
 ## Integration тесты
 
-**Расположение**: `tests/integration/`
+### Расположение integration тестов
 
-**Build tag**: `integration`
+`tests/integration/`
 
-**Технологии**:
+### Build tag integration тестов
+
+`integration`
+
+### Технологии integration тестов
 
 - SQLite in-memory
 - `httptest.ResponseRecorder`
-- Полный HTTP стек
+- Полный HTTP стек (Gin router, middleware, handlers)
+- AutoMigrate
 
-**Цель**: Быстрые тесты бизнес-логики и API контрактов без внешних зависимостей.
+### Что проверяют integration тесты
 
-**Характеристики**:
-
-- Быстрое выполнение (секунды)
-- Отсутствие зависимости от Docker
-- Использование AutoMigrate вместо реальных миграций
-- Пригодность для CI/CD
-
-**Что проверяют**:
-
-- Полный жизненный цикл PR (создание, автоназначение ревьюеров, мерж, переприсвоение)
-- Управление командами (создание, получение, множественные команды)
-- Управление пользователями (активность, получение списка PR для ревьюера)
+- Полный жизненный цикл PR (создание, автоназначение, мерж, переприсвоение)
+- Управление командами и пользователями
 - Обработка ошибок и граничные случаи
 
-**Запуск**:
+### Запуск integration тестов
 
 ```bash
 make test-integration
@@ -69,61 +66,31 @@ make test-integration
 go test -tags=integration ./tests/integration/... -v
 ```
 
----
-
 ## E2E тесты
 
-**Расположение**: `tests/e2e/`
+### Расположение E2E тестов
 
-**Build tag**: `e2e`
+`tests/e2e/`
 
-**Технологии**:
+### Build tag E2E тестов
+
+`e2e`
+
+### Технологии E2E тестов
 
 - `testcontainers-go` для Docker контейнеров
 - PostgreSQL 12 (реальная БД)
 - Реальный HTTP сервер
-- Полный стек приложения
+- Реальные миграции
 
-**Цель**: Проверка всей системы в условиях, близких к продакшену.
+### Что проверяют E2E тесты
 
-**Характеристики**:
+- Business Scenarios: полный жизненный цикл PR, управление активностью
+- Error Scenarios: обработка ошибок (`NO_CANDIDATE`, `NOT_ASSIGNED`)
+- Advanced Scenarios: конкурентность, идемпотентность, дублирование ключей
+- Edge Cases: Unicode символы, длинные имена, пустые списки
 
-- Медленное выполнение (минуты)
-- Требуют Docker daemon
-- Используют реальные миграции
-- Проверяют PostgreSQL constraints, triggers, indexes
-- Проверяют конкурентность и race conditions
-
-**Что проверяют**:
-
-**Business Scenarios** (`business_scenarios_test.go`):
-
-- Полный жизненный цикл PR (создание → автоназначение → переприсвоение → мерж → идемпотентность)
-- Управление активностью пользователей (неактивные не назначаются, деактивация/реактивация)
-- Лимиты количества ревьюеров (0 для 1 члена, 1 для 2 членов, 2 для 3+ членов)
-
-**Error Scenarios** (`error_scenarios_test.go`):
-
-- Ошибка `NO_CANDIDATE` при переприсвоении
-- Ошибка `NOT_ASSIGNED` при попытке переприсвоить не назначенного ревьюера
-- Множественные PR и `getReview` (возврат всех PR, включая MERGED)
-
-**Advanced Scenarios** (`advanced_scenarios_test.go`):
-
-- Конкурентное создание PR (race conditions, справедливое распределение)
-- Идемпотентность мержа (повторный мерж не меняет состояние)
-- Дублирование ключей (`TEAM_EXISTS`, `PR_EXISTS`)
-- Ошибки `NOT_FOUND` для всех endpoints
-
-**Edge Cases** (`edge_cases_test.go`):
-
-- Unicode и специальные символы (кириллица, японские, китайские символы)
-- Цепочки переприсвоений
-- Неизменяемость команд
-- Длинные имена (лимит 255 символов)
-- Пустые списки ревьюеров
-
-**Запуск**:
+### Запуск E2E тестов
 
 ```bash
 make test-e2e
@@ -131,31 +98,23 @@ make test-e2e
 go test -tags=e2e ./tests/e2e/... -v -timeout 20m
 ```
 
-**Требования**:
-
-- Docker daemon должен быть запущен
-- Достаточно ресурсов для Docker контейнеров
-
----
+**Требования:** Docker daemon должен быть запущен.
 
 ## Сравнительная таблица
 
 | Аспект | Unit тесты | Integration тесты | E2E тесты |
 |--------|-----------|------------------|-----------|
-| **Расположение** | `internal/*/...` | `tests/integration/` | `tests/e2e/` |
-| **Build tag** | нет | `integration` | `e2e` |
-| **База данных** | SQLite in-memory / моки | SQLite in-memory | PostgreSQL 12 (Docker) |
-| **HTTP** | httptest / моки | httptest | Реальный HTTP сервер |
-| **Скорость** | Очень быстро | Быстро | Медленно (минуты) |
-| **Зависимости** | Нет | Нет | Docker required |
-| **Миграции** | AutoMigrate | AutoMigrate | Реальные миграции |
-| **Использование** | При разработке | CI/CD, быстрая обратная связь | Pre-release валидация |
-
----
+| Расположение | `internal/*/...` | `tests/integration/` | `tests/e2e/` |
+| Build tag | нет | `integration` | `e2e` |
+| База данных | SQLite in-memory / моки | SQLite in-memory | PostgreSQL 12 (Docker) |
+| HTTP | httptest / моки | httptest | Реальный HTTP сервер |
+| Скорость | Очень быстро | Быстро | Медленно |
+| Зависимости | Нет | Нет | Docker required |
+| Миграции | AutoMigrate | AutoMigrate | Реальные миграции |
 
 ## Команды для запуска
 
-### Все unit тесты
+### Команды для unit тестов
 
 ```bash
 make test
@@ -163,20 +122,16 @@ make test
 go test ./...
 ```
 
-## Integration tests
+### Команды для integration тестов
 
 ```bash
 make test-integration
-# или
-go test -tags=integration ./tests/integration/... -v
-``
+```
 
-### E2E тесты
+### Команды для E2E тестов
 
 ```bash
 make test-e2e
-# или
-go test -tags=e2e ./tests/e2e/... -v -timeout 20m
 ```
 
 ### С покрытием кода
@@ -185,49 +140,48 @@ go test -tags=e2e ./tests/e2e/... -v -timeout 20m
 make test-coverage
 ```
 
+Генерирует отчет в `coverage.html` и `coverage.out`.
+
 ## CI/CD
 
-Проект использует GitHub Actions для автоматического запуска тестов при push и создании Pull Request.
+Проект использует GitHub Actions для автоматического запуска тестов.
 
-### Локальная проверка CI/CD
-
-Перед созданием PR рекомендуется запустить те же проверки, что выполняются в CI/CD:
+### Локальная проверка
 
 ```bash
 make ci
 ```
 
-Эта команда выполняет:
-
-- Линтинг кода (`make lint`)
-- Integration тесты (`make test-integration`)
-- Unit тесты (`make test`)
+Выполняет: линтинг кода, integration тесты, unit тесты.
 
 ### GitHub Actions
 
 Workflow файл: `.github/workflows/ci.yml`
 
-**Jobs:**
+Jobs:
 
-- `lint` - проверка кода линтером (golangci-lint)
+- `lint` - проверка кода линтером
 - `test` - запуск unit и integration тестов, генерация coverage report
 
-**Триггеры:**
+Триггеры: Push в ветки `main` и `dev`, Pull Request в ветки `main` и `dev`.
 
-- Push в ветки `main` и `dev`
-- Pull Request в ветки `main` и `dev`
+## Покрытие кода
 
-**Требования:**
+### Генерация отчета
 
-- Все проверки должны пройти успешно для мержа PR
-- Coverage report загружается как артефакт
+```bash
+make test-coverage
+```
 
-### Запуск тестов в CI/CD
+### Целевое покрытие
 
-В CI/CD выполняются:
+- Бизнес-логика (service): ≥ 80%
+- Handlers: ≥ 70%
+- Repository: ≥ 70%
+- Models: ≥ 60%
 
-- Integration тесты с тегом `integration`
-- Unit тесты для всех модулей
-- Генерация coverage report
+### Просмотр покрытия
 
-E2E тесты не запускаются в CI/CD по умолчанию (требуют Docker и больше времени), но могут быть добавлены при необходимости.
+```bash
+open coverage.html
+```

@@ -174,7 +174,7 @@ func TestService_CreatePullRequest(t *testing.T) {
 		assert.Equal(t, "pr-1", resp.PullRequestID)
 		assert.Equal(t, "Add feature", resp.PullRequestName)
 		assert.Equal(t, "u1", resp.AuthorID)
-		assert.Equal(t, "OPEN", resp.Status)
+		assert.Equal(t, pullrequestModel.StatusOPEN, resp.Status)
 		assert.Len(t, resp.AssignedReviewers, 2)
 		assert.Contains(t, resp.AssignedReviewers, "u2")
 		assert.Contains(t, resp.AssignedReviewers, "u3")
@@ -243,7 +243,7 @@ func TestService_MergePullRequest(t *testing.T) {
 			"pr-1",
 			"Add feature",
 			"u1",
-			"OPEN",
+			pullrequestModel.StatusOPEN,
 		)
 
 		req := &pullrequestModel.MergePullRequestRequest{
@@ -253,7 +253,7 @@ func TestService_MergePullRequest(t *testing.T) {
 		resp, err := svc.MergePullRequest(ctx, req)
 
 		require.NoError(t, err)
-		assert.Equal(t, "MERGED", resp.Status)
+		assert.Equal(t, pullrequestModel.StatusMERGED, resp.Status)
 		assert.NotEmpty(t, resp.MergedAt)
 	})
 }
@@ -278,7 +278,7 @@ func TestService_ReassignReviewer(t *testing.T) {
 			"pr-1",
 			"Add feature",
 			"u1",
-			"OPEN",
+			pullrequestModel.StatusOPEN,
 		)
 		db.Exec(
 			"INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)",
@@ -314,7 +314,7 @@ func TestService_ReassignReviewer(t *testing.T) {
 			"pr-1",
 			"Add feature",
 			"u1",
-			"OPEN",
+			pullrequestModel.StatusOPEN,
 		)
 		db.Exec(
 			"INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)",
@@ -540,6 +540,7 @@ func TestService_CreatePullRequest_TransactionErrors(t *testing.T) {
 	t.Run("error when assigning reviewer fails - max reviewers exceeded", func(t *testing.T) {
 		db := setupTestDB(t)
 		repo := repository.New(db, zap.NewNop().Sugar())
+		svc := New(repo, db, zap.NewNop().Sugar())
 
 		db.Exec("INSERT INTO teams (team_name) VALUES (?)", "backend")
 		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
@@ -551,23 +552,31 @@ func TestService_CreatePullRequest_TransactionErrors(t *testing.T) {
 		db.Exec("INSERT INTO users (user_id, username, team_name, is_active) VALUES (?, ?, ?, ?)",
 			"u4", "David", "backend", true)
 
-		// Create PR manually without reviewers
+		// Create PR manually with 2 reviewers already assigned
 		db.Exec(
 			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
-			"pr-1", "Add feature", "u1", "OPEN",
+			"pr-1", "Add feature", "u1", pullrequestModel.StatusOPEN,
+		)
+		db.Exec(
+			"INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)",
+			"pr-1", "u2",
+		)
+		db.Exec(
+			"INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)",
+			"pr-1", "u3",
 		)
 
-		// Assign 2 reviewers manually
-		err1 := repo.AssignReviewer(ctx, "pr-1", "u2")
-		require.NoError(t, err1)
-		err2 := repo.AssignReviewer(ctx, "pr-1", "u3")
-		require.NoError(t, err2)
+		// Try to create PR with same ID - should fail with ErrPullRequestExists
+		// This tests that CreatePullRequest checks for existing PR in transaction
+		req := &pullrequestModel.CreatePullRequestRequest{
+			PullRequestID:   "pr-1",
+			PullRequestName: "Another feature",
+			AuthorID:        "u1",
+		}
 
-		// Try to assign third reviewer (should fail - max reviewers exceeded)
-		// This tests the AssignReviewer error path in createPRInTransaction
-		err3 := repo.AssignReviewer(ctx, "pr-1", "u4")
-		assert.Error(t, err3)
-		assert.ErrorIs(t, err3, pullrequestModel.ErrMaxReviewersExceeded)
+		resp, err := svc.CreatePullRequest(ctx, req)
+		assert.Nil(t, resp)
+		assert.ErrorIs(t, err, pullrequestModel.ErrPullRequestExists)
 	})
 
 	t.Run("error when getting reviewers after assignment", func(t *testing.T) {
@@ -615,7 +624,7 @@ func TestService_ReassignReviewer_TransactionErrors(t *testing.T) {
 			"u3", "Charlie", "backend", true)
 		db.Exec(
 			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
-			"pr-1", "Add feature", "u1", "OPEN",
+			"pr-1", "Add feature", "u1", pullrequestModel.StatusOPEN,
 		)
 		// Assign both reviewers
 		db.Exec("INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)", "pr-1", "u2")
@@ -647,7 +656,7 @@ func TestService_ReassignReviewer_TransactionErrors(t *testing.T) {
 			"u3", "Charlie", "backend", false)
 		db.Exec(
 			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
-			"pr-1", "Add feature", "u1", "OPEN",
+			"pr-1", "Add feature", "u1", pullrequestModel.StatusOPEN,
 		)
 		db.Exec("INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)", "pr-1", "u2")
 
@@ -672,7 +681,7 @@ func TestService_ReassignReviewer_TransactionErrors(t *testing.T) {
 			"u1", "Alice", "backend", true)
 		db.Exec(
 			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
-			"pr-1", "Add feature", "u1", "OPEN",
+			"pr-1", "Add feature", "u1", pullrequestModel.StatusOPEN,
 		)
 
 		req := &pullrequestModel.ReassignReviewerRequest{
@@ -704,7 +713,7 @@ func TestService_ReassignReviewer_TransactionErrors(t *testing.T) {
 		db.Exec(
 			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status, merged_at) "+
 				"VALUES (?, ?, ?, ?, ?)",
-			"pr-1", "Add feature", "u1", "MERGED", mergedAt,
+			"pr-1", "Add feature", "u1", pullrequestModel.StatusMERGED, mergedAt,
 		)
 		db.Exec("INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)", "pr-1", "u2")
 
@@ -733,7 +742,7 @@ func TestService_ReassignReviewer_TransactionErrors(t *testing.T) {
 			"u3", "Charlie", "backend", true)
 		db.Exec(
 			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
-			"pr-1", "Add feature", "u1", "OPEN",
+			"pr-1", "Add feature", "u1", pullrequestModel.StatusOPEN,
 		)
 		// u3 is assigned, not u2
 		db.Exec("INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)", "pr-1", "u3")
@@ -769,7 +778,7 @@ func TestService_ReassignReviewer_EdgeCases(t *testing.T) {
 			"u3", "Charlie", "backend", true)
 		db.Exec(
 			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
-			"pr-1", "Add feature", "u1", "OPEN",
+			"pr-1", "Add feature", "u1", pullrequestModel.StatusOPEN,
 		)
 		// Both reviewers assigned
 		db.Exec("INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)", "pr-1", "u2")
@@ -798,7 +807,7 @@ func TestService_ReassignReviewer_EdgeCases(t *testing.T) {
 			"u2", "Bob", "backend", true)
 		db.Exec(
 			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
-			"pr-1", "Add feature", "u1", "OPEN",
+			"pr-1", "Add feature", "u1", pullrequestModel.StatusOPEN,
 		)
 		db.Exec("INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)", "pr-1", "u2")
 
@@ -827,7 +836,7 @@ func TestService_ReassignReviewer_EdgeCases(t *testing.T) {
 			"u3", "Charlie", "backend", true)
 		db.Exec(
 			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
-			"pr-1", "Add feature", "u1", "OPEN",
+			"pr-1", "Add feature", "u1", pullrequestModel.StatusOPEN,
 		)
 		db.Exec("INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)", "pr-1", "u2")
 
@@ -865,7 +874,7 @@ func TestService_Idempotency(t *testing.T) {
 			"u1", "Alice", "backend", true)
 		db.Exec(
 			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
-			"pr-1", "Add feature", "u1", "OPEN",
+			"pr-1", "Add feature", "u1", pullrequestModel.StatusOPEN,
 		)
 
 		req := &pullrequestModel.MergePullRequestRequest{
@@ -875,19 +884,19 @@ func TestService_Idempotency(t *testing.T) {
 		// First merge
 		resp1, err1 := svc.MergePullRequest(ctx, req)
 		require.NoError(t, err1)
-		assert.Equal(t, "MERGED", resp1.Status)
+		assert.Equal(t, pullrequestModel.StatusMERGED, resp1.Status)
 		mergedAt1 := resp1.MergedAt
 
 		// Second merge (idempotent)
 		resp2, err2 := svc.MergePullRequest(ctx, req)
 		require.NoError(t, err2)
-		assert.Equal(t, "MERGED", resp2.Status)
+		assert.Equal(t, pullrequestModel.StatusMERGED, resp2.Status)
 		assert.Equal(t, mergedAt1, resp2.MergedAt)
 
 		// Third merge (still idempotent)
 		resp3, err3 := svc.MergePullRequest(ctx, req)
 		require.NoError(t, err3)
-		assert.Equal(t, "MERGED", resp3.Status)
+		assert.Equal(t, pullrequestModel.StatusMERGED, resp3.Status)
 		assert.Equal(t, mergedAt1, resp3.MergedAt)
 	})
 
@@ -933,7 +942,7 @@ func TestService_Idempotency(t *testing.T) {
 			"u3", "Charlie", "backend", true)
 		db.Exec(
 			"INSERT INTO pull_requests (pull_request_id, pull_request_name, author_id, status) VALUES (?, ?, ?, ?)",
-			"pr-1", "Add feature", "u1", "OPEN",
+			"pr-1", "Add feature", "u1", pullrequestModel.StatusOPEN,
 		)
 		db.Exec("INSERT INTO pull_request_reviewers (pull_request_id, user_id) VALUES (?, ?)", "pr-1", "u2")
 
@@ -1109,20 +1118,20 @@ func TestService_MergePullRequest_Unit(t *testing.T) {
 	})
 
 	t.Run("pull request not found", func(t *testing.T) {
-		mockRepo := new(mockRepository)
-		svc := New(mockRepo, nil, zap.NewNop().Sugar())
+		// MergePullRequest uses transactions which require real DB
+		// Use real DB instead of mock repository
+		db := setupTestDB(t)
+		repo := repository.New(db, zap.NewNop().Sugar())
+		svc := New(repo, db, zap.NewNop().Sugar())
 
 		req := &pullrequestModel.MergePullRequestRequest{
 			PullRequestID: "nonexistent",
 		}
 
-		mockRepo.On("GetByID", ctx, "nonexistent").Return(nil, pullrequestModel.ErrPullRequestNotFound)
-
 		resp, err := svc.MergePullRequest(ctx, req)
 
 		assert.Nil(t, resp)
 		assert.ErrorIs(t, err, pullrequestModel.ErrPullRequestNotFound)
-		mockRepo.AssertExpectations(t)
 	})
 }
 

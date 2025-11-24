@@ -72,8 +72,8 @@ func (s *service) CreatePullRequest(
 		return nil, err
 	}
 
-	// Select up to 2 random reviewers
-	selectedReviewers := selectRandomReviewers(candidates, 2)
+	// Select up to MaxReviewersPerPR random reviewers
+	selectedReviewers := selectRandomReviewers(candidates, pullrequestModel.MaxReviewersPerPR)
 
 	// Use transaction to ensure atomicity
 	// Check for existing PR inside transaction to prevent race condition
@@ -115,6 +115,8 @@ func (s *service) validateCreateRequest(req *pullrequestModel.CreatePullRequestR
 }
 
 // createPRInTransaction creates PR and assigns reviewers within a transaction.
+//
+//nolint:gocognit // Complex business logic with multiple validation steps
 func (s *service) createPRInTransaction(
 	ctx context.Context,
 	tx *gorm.DB,
@@ -138,8 +140,37 @@ func (s *service) createPRInTransaction(
 		return nil, createErr
 	}
 
-	// Assign reviewers
+	// Validate business rules before assigning reviewers
+	// Business rules: max 2 reviewers, author cannot be reviewer
+	if len(selectedReviewers) > pullrequestModel.MaxReviewersPerPR {
+		return nil, pullrequestModel.ErrMaxReviewersExceeded
+	}
+
+	// Assign reviewers with business rule validation
 	for _, reviewer := range selectedReviewers {
+		// Validate: author cannot be reviewer
+		if reviewer.UserID == req.AuthorID {
+			return nil, pullrequestModel.ErrAuthorCannotBeReviewer
+		}
+
+		// Check current reviewer count before assignment
+		currentReviewers, getErr := txRepo.GetReviewers(ctx, req.PullRequestID)
+		if getErr != nil {
+			return nil, getErr
+		}
+
+		// Validate: max reviewers limit
+		if len(currentReviewers) >= pullrequestModel.MaxReviewersPerPR {
+			return nil, pullrequestModel.ErrMaxReviewersExceeded
+		}
+
+		// Validate: duplicate reviewer
+		for _, reviewerID := range currentReviewers {
+			if reviewerID == reviewer.UserID {
+				return nil, pullrequestModel.ErrReviewerAlreadyAssigned
+			}
+		}
+
 		if assignErr := txRepo.AssignReviewer(ctx, req.PullRequestID, reviewer.UserID); assignErr != nil {
 			return nil, assignErr
 		}
@@ -162,6 +193,8 @@ func (s *service) createPRInTransaction(
 }
 
 // MergePullRequest marks a pull request as MERGED (idempotent operation).
+//
+//nolint:gocognit // Complex business logic with transaction handling
 func (s *service) MergePullRequest(
 	ctx context.Context,
 	req *pullrequestModel.MergePullRequestRequest,
@@ -171,68 +204,83 @@ func (s *service) MergePullRequest(
 		return nil, pullrequestModel.ErrInvalidPullRequestID
 	}
 
-	// Get PR
-	pr, err := s.repo.GetByID(ctx, req.PullRequestID)
-	if err != nil {
-		return nil, err
-	}
+	// Use transaction to ensure atomicity of status update and data retrieval
+	var result *pullrequestModel.PullRequestResponse
+	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		txRepo := repository.New(tx, s.logger)
 
-	// If already MERGED, return current state (idempotent)
-	if pr.Status == "MERGED" {
-		reviewerIDs, getErr := s.repo.GetReviewers(ctx, req.PullRequestID)
-		if getErr != nil {
-			return nil, getErr
+		// Get PR (inside transaction)
+		pr, txErr := txRepo.GetByID(ctx, req.PullRequestID)
+		if txErr != nil {
+			return txErr
+		}
+
+		// If already MERGED, return current state (idempotent)
+		if pr.Status == pullrequestModel.StatusMERGED {
+			reviewerIDs, getErr := txRepo.GetReviewers(ctx, req.PullRequestID)
+			if getErr != nil {
+				return getErr
+			}
+
+			mergedAt := ""
+			if pr.MergedAt != nil {
+				mergedAt = pr.MergedAt.Format(time.RFC3339)
+			}
+
+			result = &pullrequestModel.PullRequestResponse{
+				PullRequestID:     pr.PullRequestID,
+				PullRequestName:   pr.PullRequestName,
+				AuthorID:          pr.AuthorID,
+				Status:            pr.Status,
+				AssignedReviewers: reviewerIDs,
+				CreatedAt:         pr.CreatedAt.Format(time.RFC3339),
+				MergedAt:          mergedAt,
+			}
+			return nil
+		}
+
+		// Update status to MERGED
+		now := time.Now()
+		txErr = txRepo.UpdateStatus(ctx, req.PullRequestID, pullrequestModel.StatusMERGED, &now)
+		if txErr != nil {
+			return txErr
+		}
+
+		// Get updated PR (inside transaction)
+		var mergedPR *pullrequestModel.PullRequest
+		mergedPR, txErr = txRepo.GetByID(ctx, req.PullRequestID)
+		if txErr != nil {
+			return txErr
+		}
+
+		// Get reviewers (inside transaction)
+		reviewerIDs, txErr := txRepo.GetReviewers(ctx, req.PullRequestID)
+		if txErr != nil {
+			return txErr
 		}
 
 		mergedAt := ""
-		if pr.MergedAt != nil {
-			mergedAt = pr.MergedAt.Format(time.RFC3339)
+		if mergedPR.MergedAt != nil {
+			mergedAt = mergedPR.MergedAt.Format(time.RFC3339)
 		}
 
-		return &pullrequestModel.PullRequestResponse{
-			PullRequestID:     pr.PullRequestID,
-			PullRequestName:   pr.PullRequestName,
-			AuthorID:          pr.AuthorID,
-			Status:            pr.Status,
+		result = &pullrequestModel.PullRequestResponse{
+			PullRequestID:     mergedPR.PullRequestID,
+			PullRequestName:   mergedPR.PullRequestName,
+			AuthorID:          mergedPR.AuthorID,
+			Status:            mergedPR.Status,
 			AssignedReviewers: reviewerIDs,
-			CreatedAt:         pr.CreatedAt.Format(time.RFC3339),
+			CreatedAt:         mergedPR.CreatedAt.Format(time.RFC3339),
 			MergedAt:          mergedAt,
-		}, nil
-	}
+		}
+		return nil
+	})
 
-	// Update status to MERGED
-	now := time.Now()
-	err = s.repo.UpdateStatus(ctx, req.PullRequestID, "MERGED", &now)
 	if err != nil {
 		return nil, err
 	}
 
-	// Get updated PR
-	mergedPR, err := s.repo.GetByID(ctx, req.PullRequestID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get reviewers
-	reviewerIDs, err := s.repo.GetReviewers(ctx, req.PullRequestID)
-	if err != nil {
-		return nil, err
-	}
-
-	mergedAt := ""
-	if mergedPR.MergedAt != nil {
-		mergedAt = mergedPR.MergedAt.Format(time.RFC3339)
-	}
-
-	return &pullrequestModel.PullRequestResponse{
-		PullRequestID:     mergedPR.PullRequestID,
-		PullRequestName:   mergedPR.PullRequestName,
-		AuthorID:          mergedPR.AuthorID,
-		Status:            mergedPR.Status,
-		AssignedReviewers: reviewerIDs,
-		CreatedAt:         mergedPR.CreatedAt.Format(time.RFC3339),
-		MergedAt:          mergedAt,
-	}, nil
+	return result, nil
 }
 
 // ReassignReviewer reassigns a reviewer to another from the same team.
@@ -282,7 +330,7 @@ func (s *service) validateReassignRequest(req *pullrequestModel.ReassignReviewer
 
 // reassignInTransaction performs reassignment within a transaction.
 //
-//nolint:gocognit,gocyclo // Complex business logic with multiple validation steps
+//nolint:funlen,gocognit,gocyclo // Complex business logic with multiple validation steps
 func (s *service) reassignInTransaction(
 	ctx context.Context,
 	tx *gorm.DB,
@@ -297,7 +345,7 @@ func (s *service) reassignInTransaction(
 	}
 
 	// Check if PR is already merged (inside transaction)
-	if pr.Status == "MERGED" {
+	if pr.Status == pullrequestModel.StatusMERGED {
 		return nil, pullrequestModel.ErrPullRequestMerged
 	}
 
@@ -353,6 +401,32 @@ func (s *service) reassignInTransaction(
 		return nil, pullrequestModel.ErrNoCandidate
 	}
 	newReviewerID := selected[0].UserID
+
+	// Validate business rules before reassignment
+	// Validate: author cannot be reviewer
+	if newReviewerID == pr.AuthorID {
+		return nil, pullrequestModel.ErrAuthorCannotBeReviewer
+	}
+
+	// Check current reviewer count before assignment
+	currentReviewers, countErr := txRepo.GetReviewers(ctx, req.PullRequestID)
+	if countErr != nil {
+		return nil, countErr
+	}
+
+	// After removing old reviewer, we'll have len(currentReviewers) - 1 reviewers
+	// So we can add one more if (len - 1) < MaxReviewersPerPR
+	reviewersAfterRemoval := len(currentReviewers) - 1
+	if reviewersAfterRemoval >= pullrequestModel.MaxReviewersPerPR {
+		return nil, pullrequestModel.ErrMaxReviewersExceeded
+	}
+
+	// Validate: duplicate reviewer (check if new reviewer is already assigned)
+	for _, reviewerID := range currentReviewers {
+		if reviewerID == newReviewerID && reviewerID != req.OldUserID {
+			return nil, pullrequestModel.ErrReviewerAlreadyAssigned
+		}
+	}
 
 	// Remove old reviewer and assign new one
 	if removeErr := txRepo.RemoveReviewer(ctx, req.PullRequestID, req.OldUserID); removeErr != nil {
